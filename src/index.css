@@ -2,41 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Hedera CertChain Design System - Professional blockchain certificate platform
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base colors - Clean professional palette */
+    --background: 240 10% 98%;
+    --foreground: 240 10% 9%;
 
+    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 10% 9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Deep blockchain blue */
+    --primary: 217 91% 25%;
+    --primary-foreground: 0 0% 98%;
+    --primary-light: 217 91% 35%;
+    --primary-glow: 217 91% 45%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Professional green for verified states */
+    --secondary: 158 64% 30%;
+    --secondary-foreground: 0 0% 98%;
+    --secondary-light: 158 64% 40%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Accent - Hedera brand purple */
+    --accent: 264 83% 44%;
+    --accent-foreground: 0 0% 98%;
+    --accent-light: 264 83% 54%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Muted tones */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Status colors */
+    --success: 158 64% 30%;
+    --success-foreground: 0 0% 98%;
+    
+    --warning: 43 96% 56%;
+    --warning-foreground: 0 0% 9%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders and inputs */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 217 91% 25%;
 
-    --radius: 0.5rem;
+    /* Gradients for hero sections and cards */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 25%), hsl(217 91% 35%));
+    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 30%), hsl(158 64% 40%));
+    --gradient-accent: linear-gradient(135deg, hsl(264 83% 44%), hsl(264 83% 54%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 25%), hsl(264 83% 44%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 5% 98%));
+
+    /* Shadows for depth */
+    --shadow-card: 0 4px 6px -1px hsl(240 10% 9% / 0.1), 0 2px 4px -1px hsl(240 10% 9% / 0.06);
+    --shadow-elevated: 0 10px 15px -3px hsl(240 10% 9% / 0.1), 0 4px 6px -2px hsl(240 10% 9% / 0.05);
+    --shadow-glow: 0 0 20px hsl(217 91% 45% / 0.3);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,33 +90,56 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode - Professional dark blockchain theme */
+    --background: 240 10% 6%;
+    --foreground: 240 5% 90%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 10% 8%;
+    --card-foreground: 240 5% 90%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 10% 8%;
+    --popover-foreground: 240 5% 90%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 45%;
+    --primary-foreground: 240 10% 6%;
+    --primary-light: 217 91% 55%;
+    --primary-glow: 217 91% 65%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 158 64% 40%;
+    --secondary-foreground: 240 10% 6%;
+    --secondary-light: 158 64% 50%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 264 83% 54%;
+    --accent-foreground: 240 10% 6%;
+    --accent-light: 264 83% 64%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 240 10% 12%;
+    --muted-foreground: 240 5% 60%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 158 64% 40%;
+    --success-foreground: 240 10% 6%;
+    
+    --warning: 43 96% 56%;
+    --warning-foreground: 240 10% 6%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 240 10% 6%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 217 91% 45%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 35%), hsl(217 91% 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 35%), hsl(158 64% 45%));
+    --gradient-accent: linear-gradient(135deg, hsl(264 83% 44%), hsl(264 83% 54%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 35%), hsl(264 83% 44%));
+    --gradient-card: linear-gradient(135deg, hsl(240 10% 8%), hsl(240 10% 10%));
+
+    /* Dark shadows */
+    --shadow-card: 0 4px 6px -1px hsl(240 10% 3% / 0.3), 0 2px 4px -1px hsl(240 10% 3% / 0.2);
+    --shadow-elevated: 0 10px 15px -3px hsl(240 10% 3% / 0.3), 0 4px 6px -2px hsl(240 10% 3% / 0.2);
+    --shadow-glow: 0 0 20px hsl(217 91% 45% / 0.4);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
