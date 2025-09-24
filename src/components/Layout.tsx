@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Shield, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import logoImage from '@/assets/hedera-certchain-logo.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,17 +30,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <motion.div 
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="p-2 bg-gradient-primary rounded-lg shadow-glow">
-                <Shield className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-                Hedera CertChain
-              </span>
+              <img 
+                src={logoImage} 
+                alt="Hedera CertChain" 
+                className="h-8 w-auto"
+              />
             </motion.div>
 
             {/* Desktop Navigation */}
@@ -133,9 +133,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="p-1 bg-gradient-primary rounded">
-                <Shield className="h-4 w-4 text-primary-foreground" />
-              </div>
+              <img 
+                src={logoImage} 
+                alt="Hedera CertChain" 
+                className="h-6 w-auto opacity-80"
+              />
               <span className="text-sm text-muted-foreground">
                 Powered by Hedera Hashgraph
               </span>

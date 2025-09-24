@@ -19,28 +19,28 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 9%;
 
-    /* Primary - Deep blockchain blue */
-    --primary: 217 91% 25%;
+    /* Primary - Hedera green to match logo */
+    --primary: 156 100% 18%;
     --primary-foreground: 0 0% 98%;
-    --primary-light: 217 91% 35%;
-    --primary-glow: 217 91% 45%;
+    --primary-light: 156 100% 25%;
+    --primary-glow: 156 100% 35%;
 
-    /* Secondary - Professional green for verified states */
-    --secondary: 158 64% 30%;
+    /* Secondary - Complementary darker green */
+    --secondary: 156 100% 12%;
     --secondary-foreground: 0 0% 98%;
-    --secondary-light: 158 64% 40%;
+    --secondary-light: 156 100% 20%;
 
-    /* Accent - Hedera brand purple */
-    --accent: 264 83% 44%;
+    /* Accent - Light green for highlights */
+    --accent: 156 60% 45%;
     --accent-foreground: 0 0% 98%;
-    --accent-light: 264 83% 54%;
+    --accent-light: 156 60% 55%;
 
     /* Muted tones */
     --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
 
     /* Status colors */
-    --success: 158 64% 30%;
+    --success: 156 100% 25%;
     --success-foreground: 0 0% 98%;
     
     --warning: 43 96% 56%;
@@ -52,19 +52,19 @@ All colors MUST be HSL.
     /* Borders and inputs */
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 217 91% 25%;
+    --ring: 156 100% 18%;
 
     /* Gradients for hero sections and cards */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 25%), hsl(217 91% 35%));
-    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 30%), hsl(158 64% 40%));
-    --gradient-accent: linear-gradient(135deg, hsl(264 83% 44%), hsl(264 83% 54%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 25%), hsl(264 83% 44%));
+    --gradient-primary: linear-gradient(135deg, hsl(156 100% 18%), hsl(156 100% 25%));
+    --gradient-secondary: linear-gradient(135deg, hsl(156 100% 12%), hsl(156 100% 20%));
+    --gradient-accent: linear-gradient(135deg, hsl(156 60% 45%), hsl(156 60% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(156 100% 18%), hsl(156 60% 35%));
     --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 5% 98%));
 
     /* Shadows for depth */
     --shadow-card: 0 4px 6px -1px hsl(240 10% 9% / 0.1), 0 2px 4px -1px hsl(240 10% 9% / 0.06);
     --shadow-elevated: 0 10px 15px -3px hsl(240 10% 9% / 0.1), 0 4px 6px -2px hsl(240 10% 9% / 0.05);
-    --shadow-glow: 0 0 20px hsl(217 91% 45% / 0.3);
+    --shadow-glow: 0 0 20px hsl(156 100% 35% / 0.3);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -100,23 +100,23 @@ All colors MUST be HSL.
     --popover: 240 10% 8%;
     --popover-foreground: 240 5% 90%;
 
-    --primary: 217 91% 45%;
+    --primary: 156 100% 25%;
     --primary-foreground: 240 10% 6%;
-    --primary-light: 217 91% 55%;
-    --primary-glow: 217 91% 65%;
+    --primary-light: 156 100% 35%;
+    --primary-glow: 156 100% 45%;
 
-    --secondary: 158 64% 40%;
+    --secondary: 156 100% 15%;
     --secondary-foreground: 240 10% 6%;
-    --secondary-light: 158 64% 50%;
+    --secondary-light: 156 100% 25%;
 
-    --accent: 264 83% 54%;
+    --accent: 156 60% 50%;
     --accent-foreground: 240 10% 6%;
-    --accent-light: 264 83% 64%;
+    --accent-light: 156 60% 60%;
 
     --muted: 240 10% 12%;
     --muted-foreground: 240 5% 60%;
 
-    --success: 158 64% 40%;
+    --success: 156 100% 30%;
     --success-foreground: 240 10% 6%;
     
     --warning: 43 96% 56%;
@@ -127,19 +127,19 @@ All colors MUST be HSL.
 
     --border: 240 10% 15%;
     --input: 240 10% 15%;
-    --ring: 217 91% 45%;
+    --ring: 156 100% 25%;
 
     /* Dark mode gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 35%), hsl(217 91% 45%));
-    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 35%), hsl(158 64% 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(264 83% 44%), hsl(264 83% 54%));
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 35%), hsl(264 83% 44%));
+    --gradient-primary: linear-gradient(135deg, hsl(156 100% 20%), hsl(156 100% 30%));
+    --gradient-secondary: linear-gradient(135deg, hsl(156 100% 15%), hsl(156 100% 25%));
+    --gradient-accent: linear-gradient(135deg, hsl(156 60% 45%), hsl(156 60% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(156 100% 20%), hsl(156 60% 40%));
     --gradient-card: linear-gradient(135deg, hsl(240 10% 8%), hsl(240 10% 10%));
 
     /* Dark shadows */
     --shadow-card: 0 4px 6px -1px hsl(240 10% 3% / 0.3), 0 2px 4px -1px hsl(240 10% 3% / 0.2);
     --shadow-elevated: 0 10px 15px -3px hsl(240 10% 3% / 0.3), 0 4px 6px -2px hsl(240 10% 3% / 0.2);
-    --shadow-glow: 0 0 20px hsl(217 91% 45% / 0.4);
+    --shadow-glow: 0 0 20px hsl(156 100% 35% / 0.4);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
