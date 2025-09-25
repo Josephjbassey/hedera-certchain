@@ -21,17 +21,6 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      // Handle wallet extension conflicts gracefully
-      if (typeof window !== 'undefined') {
-        const originalSolana = window.solana;
-        Object.defineProperty(window, 'solana', {
-          configurable: true,
-          writable: true,
-          value: originalSolana
-        });
-      }
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
