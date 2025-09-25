@@ -38,7 +38,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <img 
                 src={logoImage} 
                 alt="Hedera CertChain" 
-                className="logo w-auto"
+                className="h-8 w-auto"
               />
             </motion.div>
 
