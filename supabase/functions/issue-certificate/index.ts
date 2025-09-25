@@ -220,51 +220,14 @@ serve(async (req) => {
     // Get or create certificate NFT collection
     const certificateCollectionId = await getCertificateCollectionId(client);
 
-    // Create NFT metadata with IPFS reference and verification data
+    // Create compact NFT metadata (Hedera has size limits)
     const nftMetadata = JSON.stringify({
       name: `Certificate: ${body.courseName}`,
-      description: `Digital certificate for ${body.recipientName} - ${body.courseName} completed on ${body.completionDate}`,
-      image: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`, // Reference to IPFS
-      attributes: [
-        {
-          trait_type: "Recipient",
-          value: body.recipientName
-        },
-        {
-          trait_type: "Course",
-          value: body.courseName
-        },
-        {
-          trait_type: "Issuer",
-          value: body.issuerOrganization
-        },
-        {
-          trait_type: "Completion Date",
-          value: body.completionDate
-        },
-        {
-          trait_type: "Issue Date",
-          value: issueTimestamp
-        },
-        {
-          trait_type: "IPFS CID",
-          value: ipfsCid
-        },
-        {
-          trait_type: "Certificate Hash",
-          value: certificateHash
-        },
-        {
-          trait_type: "CID Hash",
-          value: cidHash
-        }
-      ],
+      description: `Digital certificate for ${body.recipientName}`,
       properties: {
         certificateId: certificateData.id,
         ipfsCid: ipfsCid,
         certificateHash: certificateHash,
-        cidHash: cidHash,
-        issuerUserId: user.id,
         verificationMethod: "ipfs_nft_proof"
       }
     });
