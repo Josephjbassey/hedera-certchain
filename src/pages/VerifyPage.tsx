@@ -46,7 +46,7 @@ export const VerifyPage: React.FC = () => {
   }, []);
 
   /**
-   * Handle certificate verification
+   * Handle certificate verification using edge function
    */
   const handleVerification = async (idToVerify?: string) => {
     const id = idToVerify || certificateId;
@@ -56,52 +56,60 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      // Simulate API call to verify certificate
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      let requestBody: any = {
+        verificationMethod: verificationMethod
+      };
 
       if (verificationMethod === 'id' && id) {
-        // Mock verification result based on ID format
-        if (id.includes('@') && id.includes('.')) {
-          // Valid format - return success
-          setVerificationResult({
-            isValid: true,
-            certificate: {
-              id: id,
-              issuer: "University of Technology",
-              courseName: "Blockchain Development Certification",
-              recipientName: "John Doe",
-              issueDate: "2024-01-15",
-              description: "Advanced certification in blockchain development covering smart contracts, DeFi, and dApp development.",
-              hash: "sha256:e3b0c44298fc1c149afbf4c8996fb924",
-              timestamp: "2024-01-15T10:30:00Z",
-              explorerUrl: `https://hashscan.io/#/mainnet/transaction/${id}`
-            }
-          });
-        } else {
-          // Invalid format
-          setVerificationResult({
-            isValid: false,
-            error: "Certificate not found or invalid transaction ID format."
-          });
-        }
+        requestBody.transactionId = id;
       } else if (verificationMethod === 'file' && file) {
-        // Mock file verification
-        setVerificationResult({
-          isValid: true,
-          certificate: {
-            id: "0.0.123456@1234567890.123456789",
-            issuer: "Professional Certification Institute",
-            courseName: "Digital Marketing Specialist",
-            recipientName: "Jane Smith",
-            issueDate: "2024-02-20",
-            description: "Comprehensive digital marketing certification covering SEO, social media, and analytics.",
-            hash: "sha256:a1b2c3d4e5f6789012345678901234567890",
-            timestamp: "2024-02-20T14:45:00Z",
-            explorerUrl: "https://hashscan.io/#/mainnet/transaction/0.0.123456@1234567890.123456789"
-          }
-        });
+        // Generate hash from file for verification
+        const fileBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const certificateHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        requestBody.certificateHash = certificateHash;
       }
+
+      // Call verification edge function (public, no auth required)
+      const response = await fetch(`https://rcrtloxuqhnjlusisjgf.supabase.co/functions/v1/verify-certificate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await response.json();
+
+      if (!result.success || !result.verified) {
+        setVerificationResult({
+          isValid: false,
+          error: result.message || 'Certificate not found or verification failed'
+        });
+        return;
+      }
+
+      // Convert the response to our expected format
+      setVerificationResult({
+        isValid: true,
+        certificate: {
+          id: result.certificate.id,
+          issuer: result.certificate.issuerOrganization,
+          courseName: result.certificate.courseName,
+          recipientName: result.certificate.recipientName,
+          issueDate: result.certificate.issueDate,
+          description: `Certificate issued by ${result.certificate.issuerName}`,
+          hash: result.certificate.certificateHash,
+          timestamp: result.verifiedAt,
+          explorerUrl: result.blockchain.hashscanUrl
+        }
+      });
+
     } catch (error) {
+      console.error('Verification error:', error);
       setVerificationResult({
         isValid: false,
         error: "Verification failed. Please try again."

@@ -19,6 +19,7 @@ export const IssuePage: React.FC = () => {
     issuer: '',
     courseName: '',
     recipientName: '',
+    recipientEmail: '',
     issueDate: '',
     description: ''
   });
@@ -49,28 +50,61 @@ export const IssuePage: React.FC = () => {
   };
 
   /**
-   * Handle form submission and simulate Hedera transaction
+   * Handle form submission and submit to Hedera via edge function
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
     setStep('processing');
 
-    // Simulate API call to Hedera
     try {
-      // Mock processing delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      if (!file) {
+        throw new Error('No file selected');
+      }
+
+      // Convert file to base64
+      const fileBuffer = await file.arrayBuffer();
+      const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+
+      // Get auth token from Supabase
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // Mock transaction ID (in real app, this comes from Hedera)
-      const mockTxId = '0.0.123456@1234567890.123456789';
-      const mockVerificationUrl = `${window.location.origin}/verify?id=${mockTxId}`;
-      
-      setTransactionId(mockTxId);
-      setVerificationUrl(mockVerificationUrl);
+      if (!session) {
+        throw new Error('Please log in to issue certificates');
+      }
+
+      // Submit to edge function
+      const response = await supabase.functions.invoke('issue-certificate', {
+        body: {
+          recipientName: formData.recipientName,
+          recipientEmail: formData.recipientEmail,
+          issuerName: formData.issuer,
+          issuerOrganization: formData.issuer,
+          courseName: formData.courseName,
+          completionDate: formData.issueDate,
+          certificateFile: fileBase64,
+          fileName: file.name,
+          fileType: file.type
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to issue certificate');
+      }
+
+      const result = response.data;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to issue certificate');
+      }
+
+      setTransactionId(result.transactionId);
+      setVerificationUrl(result.verificationUrl);
       setStep('success');
     } catch (error) {
       console.error('Error submitting to Hedera:', error);
-      alert('Error submitting certificate. Please try again.');
+      alert(error instanceof Error ? error.message : 'Error submitting certificate. Please try again.');
+      setStep('details');
     } finally {
       setIsProcessing(false);
     }
@@ -243,26 +277,37 @@ export const IssuePage: React.FC = () => {
                           required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recipientName">Recipient Name *</Label>
-                        <Input
-                          id="recipientName"
-                          value={formData.recipientName}
-                          onChange={(e) => setFormData({...formData, recipientName: e.target.value})}
-                          placeholder="e.g., John Doe"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="issueDate">Issue Date *</Label>
-                        <Input
-                          id="issueDate"
-                          type="date"
-                          value={formData.issueDate}
-                          onChange={(e) => setFormData({...formData, issueDate: e.target.value})}
-                          required
-                        />
-                      </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="recipientName">Recipient Name *</Label>
+                         <Input
+                           id="recipientName"
+                           value={formData.recipientName}
+                           onChange={(e) => setFormData({...formData, recipientName: e.target.value})}
+                           placeholder="e.g., John Doe"
+                           required
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="recipientEmail">Recipient Email *</Label>
+                         <Input
+                           id="recipientEmail"
+                           type="email"
+                           value={formData.recipientEmail}
+                           onChange={(e) => setFormData({...formData, recipientEmail: e.target.value})}
+                           placeholder="e.g., john.doe@example.com"
+                           required
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="issueDate">Issue Date *</Label>
+                         <Input
+                           id="issueDate"
+                           type="date"
+                           value={formData.issueDate}
+                           onChange={(e) => setFormData({...formData, issueDate: e.target.value})}
+                           required
+                         />
+                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Description (Optional)</Label>
