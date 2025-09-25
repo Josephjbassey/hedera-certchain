@@ -71,8 +71,11 @@ export const IssuePage: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        console.log('No user session found - redirecting to auth');
         throw new Error('Please log in to issue certificates');
       }
+
+      console.log('Starting certificate issuance for user:', session.user.id);
 
       // Submit to edge function
       const response = await supabase.functions.invoke('issue-certificate', {
@@ -82,19 +85,25 @@ export const IssuePage: React.FC = () => {
           issuerName: formData.issuer,
           issuerOrganization: formData.issuer,
           courseName: formData.courseName,
-          completionDate: formData.issueDate,
+          completionDate: formData.issueDate, // Using issue date as completion date for now
           certificateFile: fileBase64,
           fileName: file.name,
           fileType: file.type
         }
       });
 
+      console.log('Edge function response:', response);
+
       if (response.error) {
+        console.error('Edge function error:', response.error);
         throw new Error(response.error.message || 'Failed to issue certificate');
       }
 
       const result = response.data;
+      console.log('Certificate issuance result:', result);
+      
       if (!result.success) {
+        console.error('Certificate issuance failed:', result.error);
         throw new Error(result.error || 'Failed to issue certificate');
       }
 

@@ -74,7 +74,8 @@ export const VerifyPage: React.FC = () => {
       }
 
       // Call verification edge function (public, no auth required)
-      const response = await fetch(`https://rcrtloxuqhnjlusisjgf.supabase.co/functions/v1/verify-certificate`, {
+      const supabaseUrl = 'https://rcrtloxuqhnjlusisjgf.supabase.co';
+      const response = await fetch(`${supabaseUrl}/functions/v1/verify-certificate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

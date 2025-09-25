@@ -147,7 +147,7 @@ serve(async (req) => {
       Client,
       TopicCreateTransaction,
       TopicMessageSubmitTransaction
-    } = await import("npm:@hashgraph/sdk@2.64.5");
+    } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
 
     // Create Hedera client
     const client = Client.forTestnet();

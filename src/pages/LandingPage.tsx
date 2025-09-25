@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
             >
               <Button variant="hero" size="lg" asChild className="text-lg px-8 py-6">
-                <a href="/issue">
+                <a href="/auth">
                   Issue Certificate
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
