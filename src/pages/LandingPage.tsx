@@ -294,8 +294,9 @@ export const LandingPage: React.FC = () => {
         <div className="container mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold mb-4">System Status</h2>
