@@ -18,8 +18,35 @@ interface IssueCertificateRequest {
   fileType: string;
 }
 
-// Reuse existing topic for all certificates to reduce costs
-const CERTIFICATE_TOPIC_ID = "0.0.4733812"; // Replace with your actual topic ID
+// Production-ready topic management
+const getOrCreateCertificateTopic = async (client: any, operatorAccountId: string) => {
+  // Try to use existing topic first (stored in environment for production)
+  const existingTopicId = Deno.env.get('CERTIFICATE_TOPIC_ID');
+  if (existingTopicId) {
+    console.log('Using existing certificate topic:', existingTopicId);
+    return existingTopicId;
+  }
+
+  // Create new topic for certificate anchoring
+  const { TopicCreateTransaction } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
+  
+  const topicCreateTx = new TopicCreateTransaction()
+    .setTopicMemo("HederaCertChain Certificate Anchoring")
+    .setAdminKey(client.operatorPublicKey)
+    .setSubmitKey(client.operatorPublicKey);
+
+  const topicCreateResponse = await topicCreateTx.execute(client);
+  const topicCreateReceipt = await topicCreateResponse.getReceipt(client);
+  
+  if (!topicCreateReceipt.topicId) {
+    throw new Error('Failed to create certificate topic');
+  }
+  
+  const newTopicId = topicCreateReceipt.topicId.toString();
+  
+  console.log('Created new certificate topic:', newTopicId);
+  return newTopicId;
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -181,10 +208,13 @@ serve(async (req) => {
 
     // Create Hedera client
     const client = Client.forTestnet();
-    client.setOperator(
-      AccountId.fromString(hederaAccountId),
-      PrivateKey.fromStringECDSA(hederaPrivateKey)
-    );
+    const operatorAccountId = AccountId.fromString(hederaAccountId);
+    const operatorPrivateKey = PrivateKey.fromStringECDSA(hederaPrivateKey);
+    
+    client.setOperator(operatorAccountId, operatorPrivateKey);
+
+    // Get or create certificate topic
+    const certificateTopicId = await getOrCreateCertificateTopic(client, hederaAccountId);
 
     // Create immutable proof message (only CID hash, not full certificate data)
     const proofMessage = JSON.stringify({
@@ -201,9 +231,9 @@ serve(async (req) => {
       courseHash: await hashString(body.courseName)
     });
 
-    // Submit proof to existing topic (more cost-effective)
+    // Submit proof to certificate topic
     const txTopicMessageSubmit = await new TopicMessageSubmitTransaction()
-      .setTopicId(CERTIFICATE_TOPIC_ID)
+      .setTopicId(certificateTopicId)
       .setMessage(proofMessage);
 
     const txTopicMessageSubmitResponse = await txTopicMessageSubmit.execute(client);
@@ -218,7 +248,7 @@ serve(async (req) => {
       .from('certificates')
       .update({
         ipfs_hash: ipfsCid,
-        hedera_topic_id: CERTIFICATE_TOPIC_ID,
+        hedera_topic_id: certificateTopicId,
         hedera_transaction_id: transactionId,
         status: 'issued'
       })
@@ -235,7 +265,7 @@ serve(async (req) => {
       success: true,
       certificateId: certificate.id,
       transactionId,
-      topicId: CERTIFICATE_TOPIC_ID,
+      topicId: certificateTopicId,
       ipfsCid,
       cidHash,
       verificationUrl,
