@@ -7,10 +7,11 @@ const corsHeaders = {
 };
 
 interface VerificationRequest {
-  verificationMethod: 'cid' | 'transaction_id' | 'certificate_file';
+  verificationMethod: 'cid' | 'transaction_id' | 'certificate_file' | 'nft_token_id';
   cid?: string;
   transactionId?: string;
   certificateFile?: string; // base64 encoded certificate for validation
+  nftTokenId?: string; // NFT token ID for verification
 }
 
 serve(async (req) => {
@@ -43,6 +44,7 @@ serve(async (req) => {
       
       certificateRecord = data;
     } 
+    // Method 2: Transaction ID verification
     else if (body.verificationMethod === 'transaction_id' && body.transactionId) {
       console.log('Verifying certificate by transaction ID:', body.transactionId);
       
@@ -57,6 +59,90 @@ serve(async (req) => {
         ipfsCid = certificateRecord.ipfs_hash;
       }
     }
+    // Method 3: NFT-based verification
+    else if (body.verificationMethod === 'nft_token_id' && body.nftTokenId) {
+      console.log('Verifying certificate by NFT token ID:', body.nftTokenId);
+      
+      // Handle both NFT and consensus fallback formats
+      if (body.nftTokenId.startsWith('consensus-')) {
+        console.log('Using consensus-based verification for fallback token');
+        
+        // Extract sequence number and query consensus topic
+        const sequenceNumber = body.nftTokenId.replace('consensus-', '');
+        const topicId = "0.0.6903180";
+        
+        const mirrorResponse = await fetch(
+          `https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages/${sequenceNumber}`
+        );
+        
+        if (!mirrorResponse.ok) {
+          throw new Error('Consensus message not found');
+        }
+        
+        const messageData = await mirrorResponse.json();
+        const messageBytes = new Uint8Array(atob(messageData.message).split('').map(c => c.charCodeAt(0)));
+        const messageText = new TextDecoder().decode(messageBytes);
+        const consensusMessage = JSON.parse(messageText);
+        
+        if (!consensusMessage.ipfsCid) {
+          throw new Error('No IPFS CID found in consensus message');
+        }
+        
+        ipfsCid = consensusMessage.ipfsCid;
+        console.log('Found IPFS CID from consensus message:', ipfsCid);
+        
+        // Look up certificate by NFT token ID
+        const { data } = await supabase
+          .from('certificates')
+          .select('*')
+          .eq('nft_token_id', body.nftTokenId)
+          .maybeSingle();
+        
+        certificateRecord = data;
+        
+      } else {
+        // Standard NFT verification
+        const [tokenId, serial] = body.nftTokenId.split('-');
+        
+        // Query Hedera Mirror Node for NFT info
+        const mirrorResponse = await fetch(
+          `https://testnet.mirrornode.hedera.com/api/v1/tokens/${tokenId}/nfts/${serial}`
+        );
+        
+        if (!mirrorResponse.ok) {
+          throw new Error('NFT not found on Hedera network');
+        }
+        
+        const nftData = await mirrorResponse.json();
+        
+        // Decode metadata to get IPFS CID
+        let metadata;
+        try {
+          const metadataBytes = new Uint8Array(atob(nftData.metadata).split('').map(c => c.charCodeAt(0)));
+          const metadataText = new TextDecoder().decode(metadataBytes);
+          metadata = JSON.parse(metadataText);
+        } catch (error) {
+          throw new Error('Invalid NFT metadata format');
+        }
+        
+        if (!metadata.cid) {
+          throw new Error('No IPFS CID found in NFT metadata');
+        }
+        
+        ipfsCid = metadata.cid;
+        console.log('Found IPFS CID from NFT metadata:', ipfsCid);
+        
+        // Look up certificate by NFT token ID
+        const { data } = await supabase
+          .from('certificates')
+          .select('*')
+          .eq('nft_token_id', body.nftTokenId)
+          .maybeSingle();
+        
+        certificateRecord = data;
+      }
+    }
+    // Method 4: Certificate file verification
     else if (body.verificationMethod === 'certificate_file' && body.certificateFile) {
       console.log('Verifying uploaded certificate file');
       
