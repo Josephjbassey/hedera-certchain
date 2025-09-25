@@ -14,7 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      certificates: {
+        Row: {
+          certificate_hash: string
+          completion_date: string
+          course_name: string
+          created_at: string
+          hedera_sequence_number: string | null
+          hedera_topic_id: string | null
+          hedera_transaction_id: string | null
+          id: string
+          ipfs_hash: string | null
+          issue_date: string
+          issuer_name: string
+          issuer_organization: string
+          recipient_email: string
+          recipient_name: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          certificate_hash: string
+          completion_date: string
+          course_name: string
+          created_at?: string
+          hedera_sequence_number?: string | null
+          hedera_topic_id?: string | null
+          hedera_transaction_id?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          issue_date?: string
+          issuer_name: string
+          issuer_organization: string
+          recipient_email: string
+          recipient_name: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          certificate_hash?: string
+          completion_date?: string
+          course_name?: string
+          created_at?: string
+          hedera_sequence_number?: string | null
+          hedera_topic_id?: string | null
+          hedera_transaction_id?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          issue_date?: string
+          issuer_name?: string
+          issuer_organization?: string
+          recipient_email?: string
+          recipient_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      verification_logs: {
+        Row: {
+          certificate_id: string | null
+          hedera_transaction_id: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          verification_method: string
+          verified_at: string
+        }
+        Insert: {
+          certificate_id?: string | null
+          hedera_transaction_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          verification_method: string
+          verified_at?: string
+        }
+        Update: {
+          certificate_id?: string | null
+          hedera_transaction_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          verification_method?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_logs_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
