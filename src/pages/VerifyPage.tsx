@@ -8,8 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 
 export const VerifyPage: React.FC = () => {
-  const [verificationMethod, setVerificationMethod] = useState<'nft_token_id' | 'transaction_id' | 'file_upload' | 'ipfs_cid'>('nft_token_id');
-  const [nftTokenId, setNftTokenId] = useState('');
+  const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('ipfs_cid');
   const [certificateId, setCertificateId] = useState('');
   const [ipfsCid, setIpfsCid] = useState('');
   const [file, setFile] = useState<File | null>(null);

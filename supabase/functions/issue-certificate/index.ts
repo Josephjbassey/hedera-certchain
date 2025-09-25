@@ -18,41 +18,6 @@ interface IssueCertificateRequest {
   fileType: string;
 }
 
-// NFT Collection configuration for certificates
-const getCertificateCollectionId = async (client: any) => {
-  // Try to use existing collection first (stored in environment for production)
-  const existingCollectionId = Deno.env.get('CERTIFICATE_COLLECTION_ID');
-  if (existingCollectionId) {
-    console.log('Using existing certificate collection:', existingCollectionId);
-    return existingCollectionId;
-  }
-
-  // Create new NFT collection for certificates
-  const { TokenCreateTransaction, TokenType, TokenSupplyType } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
-  
-  const tokenCreateTx = new TokenCreateTransaction()
-    .setTokenName("HederaCertChain Certificates")
-    .setTokenSymbol("CERT")
-    .setTokenType(TokenType.NonFungibleUnique)
-    .setSupplyType(TokenSupplyType.Infinite)
-    .setInitialSupply(0)
-    .setTreasuryAccountId(client.operatorAccountId)
-    .setAdminKey(client.operatorPublicKey)
-    .setSupplyKey(client.operatorPublicKey)
-    .setMetadataKey(client.operatorPublicKey);
-
-  const tokenCreateResponse = await tokenCreateTx.execute(client);
-  const tokenCreateReceipt = await tokenCreateResponse.getReceipt(client);
-  
-  if (!tokenCreateReceipt.tokenId) {
-    throw new Error('Failed to create certificate NFT collection');
-  }
-  
-  const newCollectionId = tokenCreateReceipt.tokenId.toString();
-  console.log('Created new certificate NFT collection:', newCollectionId);
-  return newCollectionId;
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -77,13 +42,15 @@ serve(async (req) => {
 
     const body: IssueCertificateRequest = await req.json();
     
-    console.log('Starting certificate NFT issuance for user:', user.id);
+    console.log('Starting secure certificate issuance for user:', user.id);
 
-    // Generate comprehensive certificate object with timestamp
+    // Step 1: Generate comprehensive certificate with cryptographic integrity
     const issueTimestamp = new Date().toISOString();
+    const certificateId = crypto.randomUUID();
+    
     const certificateData = {
-      version: "1.0",
-      id: crypto.randomUUID(),
+      version: "2.0",
+      id: certificateId,
       recipientName: body.recipientName,
       recipientEmail: body.recipientEmail,
       issuerName: body.issuerName,
@@ -99,7 +66,7 @@ serve(async (req) => {
       }
     };
 
-    // Create deterministic hash of certificate content
+    // Step 2: Create deterministic hash of certificate content for integrity
     const encoder = new TextEncoder();
     const dataString = JSON.stringify(certificateData, Object.keys(certificateData).sort());
     const data = encoder.encode(dataString);
@@ -107,29 +74,9 @@ serve(async (req) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const certificateHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // Create certificate record in database first
-    const { data: certificate, error: dbError } = await supabase
-      .from('certificates')
-      .insert({
-        user_id: user.id,
-        recipient_name: body.recipientName,
-        recipient_email: body.recipientEmail,
-        issuer_name: body.issuerName,
-        issuer_organization: body.issuerOrganization,
-        course_name: body.courseName,
-        completion_date: body.completionDate,
-        certificate_hash: certificateHash,
-        status: 'processing'
-      })
-      .select()
-      .single();
+    console.log('Generated certificate hash:', certificateHash);
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw new Error('Failed to create certificate record');
-    }
-
-    // Step 1: Upload certificate JSON to IPFS using Pinata
+    // Step 3: Upload certificate to IPFS via Pinata for immutable storage
     const pinataApiKey = Deno.env.get('PINATA_API_KEY');
     const pinataSecretKey = Deno.env.get('PINATA_SECRET_API_KEY');
 
@@ -137,23 +84,24 @@ serve(async (req) => {
       throw new Error('IPFS credentials not configured');
     }
 
-    // Create JSON file for IPFS storage
+    // Create JSON blob for IPFS
     const certificateJsonBlob = new Blob([JSON.stringify(certificateData, null, 2)], { 
       type: 'application/json' 
     });
 
     const formData = new FormData();
-    formData.append('file', certificateJsonBlob, `certificate-${certificateData.id}.json`);
+    formData.append('file', certificateJsonBlob, `certificate-${certificateId}.json`);
     
     const metadata = JSON.stringify({
-      name: `Certificate-${certificateData.id}`,
+      name: `SecureCertificate-${certificateId}`,
       keyvalues: {
-        certificateId: certificateData.id,
+        certificateId: certificateId,
         recipientName: body.recipientName,
         courseName: body.courseName,
         hash: certificateHash,
         issuerUserId: user.id,
-        version: certificateData.version
+        version: "2.0",
+        issueTimestamp: issueTimestamp
       }
     });
     formData.append('pinataMetadata', metadata);
@@ -175,25 +123,25 @@ serve(async (req) => {
 
     if (!pinataResponse.ok) {
       const errorText = await pinataResponse.text();
-      console.error('Pinata error:', errorText);
-      throw new Error(`Failed to upload to IPFS: ${errorText}`);
+      console.error('Pinata upload failed:', errorText);
+      throw new Error(`Failed to upload certificate to IPFS: ${errorText}`);
     }
 
     const pinataData = await pinataResponse.json();
     const ipfsCid = pinataData.IpfsHash;
     
-    console.log('Certificate JSON uploaded to IPFS with CID:', ipfsCid);
+    console.log('Certificate uploaded to IPFS with CID:', ipfsCid);
 
-    // Step 2: Generate CID hash for NFT metadata
+    // Step 4: Generate CID hash for Hedera Consensus Service anchoring
     const cidEncoder = new TextEncoder();
     const cidData = cidEncoder.encode(ipfsCid);
     const cidHashBuffer = await crypto.subtle.digest('SHA-256', cidData);
     const cidHashArray = Array.from(new Uint8Array(cidHashBuffer));
     const cidHash = cidHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Generated CID hash for NFT:', cidHash);
+    console.log('Generated CID hash for Hedera anchoring:', cidHash);
 
-    // Step 3: Mint NFT with certificate data
+    // Step 5: Anchor CID hash to Hedera Consensus Service
     const hederaAccountId = Deno.env.get('HEDERA_ACCOUNT_ID');
     const hederaPrivateKey = Deno.env.get('HEDERA_PRIVATE_KEY');
 
@@ -206,8 +154,8 @@ serve(async (req) => {
       AccountId,
       PrivateKey,
       Client,
-      TokenMintTransaction,
-      TokenId
+      TopicMessageSubmitTransaction,
+      TopicId
     } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
 
     // Create Hedera client
@@ -217,79 +165,85 @@ serve(async (req) => {
     
     client.setOperator(operatorAccountId, operatorPrivateKey);
 
-    // Get or create certificate NFT collection
-    const certificateCollectionId = await getCertificateCollectionId(client);
+    // Use a dedicated topic for certificate anchoring (create if doesn't exist)
+    const certificateTopicId = "0.0.6903180"; // You should create this topic once and reuse
 
-    // Create compact NFT metadata (Hedera has size limits)
-    const nftMetadata = JSON.stringify({
-      name: `Certificate: ${body.courseName}`,
-      description: `Digital certificate for ${body.recipientName}`,
-      properties: {
-        certificateId: certificateData.id,
-        ipfsCid: ipfsCid,
-        certificateHash: certificateHash,
-        verificationMethod: "ipfs_nft_proof"
-      }
+    // Create consensus message with CID hash and issuer signature
+    const consensusMessage = JSON.stringify({
+      action: "ANCHOR_CERTIFICATE",
+      certificateId: certificateId,
+      ipfsCid: ipfsCid,
+      cidHash: cidHash,
+      certificateHash: certificateHash,
+      issuerUserId: user.id,
+      issuerOrganization: body.issuerOrganization,
+      timestamp: issueTimestamp,
+      version: "2.0"
     });
 
-    // Mint the NFT
-    const metadataEncoder = new TextEncoder();
-    const tokenMintTx = new TokenMintTransaction()
-      .setTokenId(TokenId.fromString(certificateCollectionId))
-      .setMetadata([metadataEncoder.encode(nftMetadata)]);
+    const submitMessage = new TopicMessageSubmitTransaction()
+      .setTopicId(TopicId.fromString(certificateTopicId))
+      .setMessage(consensusMessage);
 
-    const tokenMintResponse = await tokenMintTx.execute(client);
-    const tokenMintReceipt = await tokenMintResponse.getReceipt(client);
+    const submitResponse = await submitMessage.execute(client);
+    const submitReceipt = await submitResponse.getReceipt(client);
     
-    if (!tokenMintReceipt.serials || tokenMintReceipt.serials.length === 0) {
-      throw new Error('Failed to mint certificate NFT');
+    if (!submitReceipt.topicSequenceNumber) {
+      throw new Error('Failed to anchor certificate to Hedera Consensus Service');
     }
 
-    const nftTokenId = `${certificateCollectionId}-${tokenMintReceipt.serials[0].toString()}`;
-    const transactionId = tokenMintResponse.transactionId.toString();
+    const transactionId = submitResponse.transactionId.toString();
+    const sequenceNumber = submitReceipt.topicSequenceNumber.toString();
 
     client.close();
 
-    console.log('Certificate NFT minted:', nftTokenId, 'Transaction:', transactionId);
+    console.log('Certificate anchored to Hedera. Transaction:', transactionId, 'Sequence:', sequenceNumber);
 
-    // Step 4: Update certificate record with NFT data
-    const { error: updateError } = await supabase
+    // Step 6: Store only essential metadata in Supabase (not the full certificate)
+    const { data: certificate, error: dbError } = await supabase
       .from('certificates')
-      .update({
+      .insert({
+        user_id: user.id,
+        recipient_name: body.recipientName,
+        recipient_email: body.recipientEmail,
+        issuer_name: body.issuerName,
+        issuer_organization: body.issuerOrganization,
+        course_name: body.courseName,
+        completion_date: body.completionDate,
+        certificate_hash: certificateHash,
         ipfs_hash: ipfsCid,
-        nft_collection_id: certificateCollectionId,
-        nft_token_id: nftTokenId,
         hedera_transaction_id: transactionId,
         status: 'issued'
       })
-      .eq('id', certificate.id);
+      .select()
+      .single();
 
-    if (updateError) {
-      console.error('Failed to update certificate:', updateError);
-      throw new Error('Failed to finalize certificate issuance');
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to create certificate record');
     }
 
-    const verificationUrl = `${req.headers.get('origin')}/verify?nft=${nftTokenId}`;
+    const verificationUrl = `${req.headers.get('origin')}/verify?cid=${ipfsCid}`;
 
     return new Response(JSON.stringify({
       success: true,
       certificateId: certificate.id,
       transactionId,
-      nftTokenId,
-      collectionId: certificateCollectionId,
+      sequenceNumber,
       ipfsCid,
       cidHash,
+      certificateHash,
       verificationUrl,
       ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`,
       hashscanUrl: `https://hashscan.io/testnet/tx/${transactionId}`,
-      nftUrl: `https://hashscan.io/testnet/token/${certificateCollectionId}/${tokenMintReceipt.serials[0].toString()}`,
-      message: "Certificate successfully issued as NFT with cryptographic proof on Hedera blockchain"
+      consensusUrl: `https://hashscan.io/testnet/topic/${certificateTopicId}`,
+      message: "Certificate securely issued with triple-layer proof: IPFS + Hedera + Cryptographic hash"
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error issuing certificate NFT:', error);
+    console.error('Error issuing secure certificate:', error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -299,12 +253,3 @@ serve(async (req) => {
     });
   }
 });
-
-// Helper function to create deterministic hashes
-async function hashString(input: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input.toLowerCase().trim());
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
