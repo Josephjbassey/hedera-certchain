@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Shield, FileCheck, QrCode, Users, ArrowRight, CheckCircle, Globe, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import SystemStatus from '@/components/SystemStatus';
 
 /**
  * Landing page for Hedera CertChain
@@ -76,8 +77,8 @@ export const LandingPage: React.FC = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
             >
               <Button variant="hero" size="lg" asChild className="text-lg px-8 py-6">
-                <a href="/auth">
-                  Issue Certificate
+                <a href="/setup">
+                  Setup Guide
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
               </Button>
@@ -268,7 +269,7 @@ export const LandingPage: React.FC = () => {
                 asChild 
                 className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90"
               >
-                <a href="/issue">
+                <a href="/auth">
                   Start Issuing Certificates
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
@@ -285,6 +286,24 @@ export const LandingPage: React.FC = () => {
               </Button>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* System Status Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-bold mb-4">System Status</h2>
+            <p className="text-lg text-muted-foreground">
+              Real-time status of all Hedera CertChain components
+            </p>
+          </motion.div>
+          <SystemStatus />
         </div>
       </section>
     </div>

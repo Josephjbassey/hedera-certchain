@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import IssuePage from "./pages/IssuePage";
 import VerifyPage from "./pages/VerifyPage";
 import AuthPage from "./pages/AuthPage";
+import SetupPage from "./pages/SetupPage";
 import NotFound from "./pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -61,6 +62,7 @@ const App = () => {
           <Layout user={user} onLogout={handleLogout}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/setup" element={<SetupPage />} />
               <Route path="/auth" element={<AuthPage onAuthSuccess={() => {}} />} />
               <Route 
                 path="/issue" 

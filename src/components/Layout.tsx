@@ -21,6 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   const navigationItems = [
     { name: 'Home', href: '/' },
+    { name: 'Setup Guide', href: '/setup' },
     { name: 'Issue Certificate', href: '/issue' },
     { name: 'Verify Certificate', href: '/verify' },
   ];
