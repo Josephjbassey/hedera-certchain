@@ -155,9 +155,7 @@ serve(async (req) => {
       PrivateKey,
       Client,
       TokenMintTransaction,
-      TokenId,
-      TopicMessageSubmitTransaction,
-      TopicId
+      TokenId
     } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
 
     // Create Hedera client
@@ -209,36 +207,9 @@ serve(async (req) => {
       console.log('Certificate NFT minted. Token:', nftTokenId, 'Transaction:', transactionId);
 
     } catch (hederaError) {
+      client?.close();
       console.error('Hedera NFT creation failed:', hederaError);
-      
-      // If NFT creation fails, fall back to consensus service anchoring
-      console.log('Falling back to consensus service anchoring...');
-      
-      const consensusMessage = JSON.stringify({
-        action: "ANCHOR_CERTIFICATE",
-        certificateId: certificateId,
-        ipfsCid: ipfsCid,
-        cidHash: cidHash,
-        certificateHash: certificateHash,
-        issuerUserId: user.id,
-        timestamp: issueTimestamp
-      });
-
-      const submitMessage = new TopicMessageSubmitTransaction()
-        .setTopicId(TopicId.fromString("0.0.6903180"))
-        .setMessage(consensusMessage);
-
-      const submitResponse = await submitMessage.execute(client);
-      const submitReceipt = await submitResponse.getReceipt(client);
-      
-      if (!submitReceipt.topicSequenceNumber) {
-        throw new Error('Failed to get sequence number from consensus service');
-      }
-      
-      transactionId = submitResponse.transactionId.toString();
-      nftTokenId = `consensus-${submitReceipt.topicSequenceNumber.toString()}`;
-      
-      console.log('Fallback anchoring successful. Transaction:', transactionId);
+      throw new Error(`Failed to create certificate NFT: ${hederaError instanceof Error ? hederaError.message : 'Unknown error'}`);
     }
     
     client.close();
@@ -281,12 +252,8 @@ serve(async (req) => {
       verificationUrl,
       ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`,
       hashscanUrl: `https://hashscan.io/testnet/tx/${transactionId}`,
-      nftUrl: nftTokenId.startsWith('consensus-') ? 
-        `https://hashscan.io/testnet/topic/0.0.6903180` : 
-        `https://hashscan.io/testnet/token/${nftTokenId.split('-')[0]}`,
-      message: nftTokenId.startsWith('consensus-') ?
-        "Certificate securely issued with IPFS + Hedera Consensus backup" :
-        "Certificate securely issued with IPFS + Hedera NFT proof"
+      nftUrl: `https://hashscan.io/testnet/token/${nftTokenId.split('-')[0]}`,
+      message: "Certificate securely issued with IPFS + Hedera NFT proof"
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
