@@ -62,9 +62,14 @@ export const IssuePage: React.FC = () => {
         throw new Error('No file selected');
       }
 
-      // Convert file to base64
+      // Convert file to base64 (safe for large files)
       const fileBuffer = await file.arrayBuffer();
-      const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+      const bytes = new Uint8Array(fileBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const fileBase64 = btoa(binary);
 
       // Get auth token from Supabase
       const { supabase } = await import('@/integrations/supabase/client');
