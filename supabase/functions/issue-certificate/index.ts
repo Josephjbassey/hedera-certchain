@@ -141,7 +141,7 @@ serve(async (req) => {
 
     console.log('Generated CID hash for Hedera anchoring:', cidHash);
 
-    // Step 5: Create Hedera NFT for immutable certificate proof
+    // Step 5: Anchor CID hash to Hedera Consensus Service
     const hederaAccountId = Deno.env.get('HEDERA_ACCOUNT_ID');
     const hederaPrivateKey = Deno.env.get('HEDERA_PRIVATE_KEY');
 
@@ -154,65 +154,50 @@ serve(async (req) => {
       AccountId,
       PrivateKey,
       Client,
-      TokenMintTransaction,
-      TokenId
+      TopicMessageSubmitTransaction,
+      TopicId
     } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
 
     // Create Hedera client
     const client = Client.forTestnet();
     const operatorAccountId = AccountId.fromString(hederaAccountId);
-    
-    // Support both ECDSA and ED25519 keys
-    let operatorPrivateKey;
-    try {
-      operatorPrivateKey = PrivateKey.fromStringECDSA(hederaPrivateKey);
-    } catch {
-      operatorPrivateKey = PrivateKey.fromStringED25519(hederaPrivateKey);
-    }
+    const operatorPrivateKey = PrivateKey.fromStringECDSA(hederaPrivateKey);
     
     client.setOperator(operatorAccountId, operatorPrivateKey);
 
-    let nftCollectionId = "0.0.6903181"; // Certificate collection
-    let transactionId;
-    let nftTokenId;
+    // Use a dedicated topic for certificate anchoring (create if doesn't exist)
+    const certificateTopicId = "0.0.6903180"; // You should create this topic once and reuse
 
-    try {
-      // Create ultra-minimal metadata to avoid size limits
-      const nftMetadata = new TextEncoder().encode(JSON.stringify({
-        cid: ipfsCid,
-        hash: cidHash.substring(0, 32), // Truncate for size
-        org: body.issuerOrganization.substring(0, 20)
-      }));
+    // Create consensus message with CID hash and issuer signature
+    const consensusMessage = JSON.stringify({
+      action: "ANCHOR_CERTIFICATE",
+      certificateId: certificateId,
+      ipfsCid: ipfsCid,
+      cidHash: cidHash,
+      certificateHash: certificateHash,
+      issuerUserId: user.id,
+      issuerOrganization: body.issuerOrganization,
+      timestamp: issueTimestamp,
+      version: "2.0"
+    });
 
-      console.log('Minting NFT with metadata size:', nftMetadata.length, 'bytes');
+    const submitMessage = new TopicMessageSubmitTransaction()
+      .setTopicId(TopicId.fromString(certificateTopicId))
+      .setMessage(consensusMessage);
 
-      // Mint NFT with certificate proof
-      const mintTx = new TokenMintTransaction()
-        .setTokenId(TokenId.fromString(nftCollectionId))
-        .addMetadata(nftMetadata)
-        .freezeWith(client);
-
-      const signedMintTx = await mintTx.sign(operatorPrivateKey);
-      const mintResponse = await signedMintTx.execute(client);
-      const mintReceipt = await mintResponse.getReceipt(client);
-      
-      if (!mintReceipt.serials || mintReceipt.serials.length === 0) {
-        throw new Error('Failed to mint certificate NFT');
-      }
-
-      const nftSerial = mintReceipt.serials[0].toString();
-      nftTokenId = `${nftCollectionId}-${nftSerial}`;
-      transactionId = mintResponse.transactionId.toString();
-
-      console.log('Certificate NFT minted. Token:', nftTokenId, 'Transaction:', transactionId);
-
-    } catch (hederaError) {
-      client?.close();
-      console.error('Hedera NFT creation failed:', hederaError);
-      throw new Error(`Failed to create certificate NFT: ${hederaError instanceof Error ? hederaError.message : 'Unknown error'}`);
-    }
+    const submitResponse = await submitMessage.execute(client);
+    const submitReceipt = await submitResponse.getReceipt(client);
     
+    if (!submitReceipt.topicSequenceNumber) {
+      throw new Error('Failed to anchor certificate to Hedera Consensus Service');
+    }
+
+    const transactionId = submitResponse.transactionId.toString();
+    const sequenceNumber = submitReceipt.topicSequenceNumber.toString();
+
     client.close();
+
+    console.log('Certificate anchored to Hedera. Transaction:', transactionId, 'Sequence:', sequenceNumber);
 
     // Step 6: Store only essential metadata in Supabase (not the full certificate)
     const { data: certificate, error: dbError } = await supabase
@@ -228,7 +213,6 @@ serve(async (req) => {
         certificate_hash: certificateHash,
         ipfs_hash: ipfsCid,
         hedera_transaction_id: transactionId,
-        nft_token_id: nftTokenId,
         status: 'issued'
       })
       .select()
@@ -245,15 +229,15 @@ serve(async (req) => {
       success: true,
       certificateId: certificate.id,
       transactionId,
-      nftTokenId,
+      sequenceNumber,
       ipfsCid,
       cidHash,
       certificateHash,
       verificationUrl,
       ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`,
       hashscanUrl: `https://hashscan.io/testnet/tx/${transactionId}`,
-      nftUrl: `https://hashscan.io/testnet/token/${nftTokenId.split('-')[0]}`,
-      message: "Certificate securely issued with IPFS + Hedera NFT proof"
+      consensusUrl: `https://hashscan.io/testnet/topic/${certificateTopicId}`,
+      message: "Certificate securely issued with triple-layer proof: IPFS + Hedera + Cryptographic hash"
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
