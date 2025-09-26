@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Hash, Send, QrCode, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Hash, Send, QrCode, CheckCircle, AlertCircle, Wallet, Image, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { QRCodeSVG } from 'qrcode.react';
+import { hederaContract } from '@/services/hedera-contract';
+import { ipfsService } from '@/services/ipfs';
+import { CertificateCrypto } from '@/lib/crypto';
+
+// Extend Window interface for ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 /**
- * Certificate issuance page
- * Allows instructors to upload certificates and submit to Hedera blockchain
+ * NFT Certificate issuance page
+ * Allows instructors to mint certificate NFTs on Hedera EVM
  */
 export const IssuePage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -20,100 +31,170 @@ export const IssuePage: React.FC = () => {
     courseName: '',
     recipientName: '',
     recipientEmail: '',
+    recipientAddress: '',
     issueDate: '',
     description: ''
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [certificateHash, setCertificateHash] = useState('');
-  const [transactionId, setTransactionId] = useState('');
-  const [verificationUrl, setVerificationUrl] = useState('');
-  const [step, setStep] = useState<'upload' | 'details' | 'processing' | 'success'>('upload');
+  const [tokenId, setTokenId] = useState<number | null>(null);
+  const [transactionHash, setTransactionHash] = useState('');
+  const [ipfsData, setIpfsData] = useState<{
+    imageUrl?: string;
+    metadataUrl?: string;
+    imageHash?: string;
+    metadataHash?: string;
+  }>({});
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [step, setStep] = useState<'connect' | 'upload' | 'details' | 'processing' | 'success'>('connect');
+
+  // Check wallet connection on component mount
+  useEffect(() => {
+    checkWalletConnection();
+  }, []);
 
   /**
-   * Handle file upload and validate file type
+   * Check if wallet is connected and initialize Hedera contract
    */
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const checkWalletConnection = async () => {
+    try {
+      if (typeof window.ethereum !== 'undefined') {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          await hederaContract.initialize();
+          const address = await hederaContract.getConnectedAddress();
+          if (address) {
+            setWalletConnected(true);
+            setWalletAddress(address);
+            setStep('upload');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check wallet connection:', error);
+    }
+  };
+
+  /**
+   * Connect to Hedera wallet
+   */
+  const connectWallet = async () => {
+    try {
+      await hederaContract.initialize();
+      const address = await hederaContract.getConnectedAddress();
+      if (address) {
+        setWalletConnected(true);
+        setWalletAddress(address);
+        setStep('upload');
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      alert('Failed to connect wallet. Please make sure you have MetaMask or HashPack installed.');
+    }
+  };
+
+  /**
+   * Handle file upload and validate for NFTs
+   */
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
     if (uploadedFile) {
-      // Validate file type (PDF or images)
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      // Validate file type for NFTs
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
       if (allowedTypes.includes(uploadedFile.type)) {
-        setFile(uploadedFile);
-        setStep('details');
-        // In a real app, we would compute SHA-256 hash here
-        const mockHash = 'sha256:' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        setCertificateHash(mockHash);
+        try {
+          // Generate certificate hash
+          const hash = await CertificateCrypto.generateFileHash(uploadedFile);
+          
+          setFile(uploadedFile);
+          setCertificateHash(hash);
+          setStep('details');
+        } catch (error) {
+          console.error('Error processing file:', error);
+          alert('Error processing file. Please try again.');
+        }
       } else {
-        alert('Please upload a PDF or image file (JPEG, PNG)');
+        alert('Please upload a PDF or image file (JPEG, PNG, WebP)');
       }
     }
   };
 
   /**
-   * Handle form submission and submit to Hedera via edge function
+   * Handle form submission and mint NFT certificate
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!walletConnected) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    if (!file) {
+      alert('Please upload a certificate file');
+      return;
+    }
+
+    // Validate required fields
+    const requiredFields = ['issuer', 'courseName', 'recipientName', 'recipientEmail', 'recipientAddress', 'issueDate'];
+    for (const field of requiredFields) {
+      if (!formData[field as keyof typeof formData]) {
+        alert(`Please fill in the ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+        return;
+      }
+    }
+
     setIsProcessing(true);
     setStep('processing');
 
     try {
-      if (!file) {
-        throw new Error('No file selected');
-      }
+      console.log('🚀 Starting NFT certificate creation...');
 
-      // Convert file to base64 (safe for large files)
-      const fileBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(fileBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const fileBase64 = btoa(binary);
-
-      // Get auth token from Supabase
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.log('No user session found - redirecting to auth');
-        throw new Error('Please log in to issue certificates');
-      }
-
-      console.log('Starting certificate issuance for user:', session.user.id);
-
-      // Submit to edge function
-      const response = await supabase.functions.invoke('issue-certificate', {
-        body: {
-          recipientName: formData.recipientName,
-          recipientEmail: formData.recipientEmail,
-          issuerName: formData.issuer,
-          issuerOrganization: formData.issuer,
-          courseName: formData.courseName,
-          completionDate: formData.issueDate, // Using issue date as completion date for now
-          certificateFile: fileBase64,
-          fileName: file.name,
-          fileType: file.type
-        }
+      // Step 1: Create and upload NFT metadata to IPFS
+      const nftUpload = await ipfsService.uploadCertificateNFT({
+        file,
+        recipientName: formData.recipientName,
+        recipientEmail: formData.recipientEmail,
+        issuerName: formData.issuer,
+        courseName: formData.courseName,
+        completionDate: formData.issueDate,
+        description: formData.description
       });
 
-      console.log('Edge function response:', response);
-
-      if (response.error) {
-        console.error('Edge function error:', response.error);
-        throw new Error(response.error.message || 'Failed to issue certificate');
+      if (!nftUpload.success) {
+        throw new Error(nftUpload.error || 'Failed to upload certificate to IPFS');
       }
 
-      const result = response.data;
-      console.log('Certificate issuance result:', result);
-      
-      if (!result.success) {
-        console.error('Certificate issuance failed:', result.error);
-        throw new Error(result.error || 'Failed to issue certificate');
+      setIpfsData({
+        imageUrl: nftUpload.imageUrl,
+        metadataUrl: nftUpload.metadataUrl,
+        imageHash: nftUpload.imageHash,
+        metadataHash: nftUpload.metadataHash
+      });
+
+      console.log('📦 IPFS upload complete:', nftUpload);
+
+      // Step 2: Mint NFT on Hedera EVM
+      const mintResult = await hederaContract.issueCertificate({
+        recipient: formData.recipientAddress,
+        recipientName: formData.recipientName,
+        recipientEmail: formData.recipientEmail,
+        issuerName: formData.issuer,
+        courseName: formData.courseName,
+        completionDate: formData.issueDate,
+        ipfsHash: nftUpload.metadataHash!,
+        certificateHash
+      });
+
+      if (!mintResult.success) {
+        throw new Error(mintResult.error || 'Failed to mint certificate NFT');
       }
 
-      setTransactionId(result.transactionId);
-      setVerificationUrl(result.verificationUrl);
+      console.log('🎉 NFT minted successfully:', mintResult);
+
+      setTokenId(mintResult.tokenId || null);
+      setTransactionHash(mintResult.transactionHash || '');
       setStep('success');
     } catch (error) {
       console.error('Error submitting to Hedera:', error);
@@ -143,10 +224,10 @@ export const IssuePage: React.FC = () => {
           className="text-center mb-12"
         >
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-            Issue New Certificate
+            Mint Certificate NFT
           </h1>
           <p className="text-lg text-muted-foreground">
-            Upload and secure your certificates on the Hedera blockchain
+            Create secure certificate NFTs on Hedera blockchain with IPFS storage
           </p>
         </motion.div>
 
@@ -157,16 +238,16 @@ export const IssuePage: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="flex items-center justify-center space-x-4 mb-12"
         >
-          {['upload', 'details', 'processing', 'success'].map((stepName, index) => (
+          {['connect', 'upload', 'details', 'processing', 'success'].map((stepName, index) => (
             <div key={stepName} className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                 step === stepName
                   ? 'bg-primary text-primary-foreground'
-                  : ['upload', 'details', 'processing', 'success'].indexOf(step) > index
+                  : ['connect', 'upload', 'details', 'processing', 'success'].indexOf(step) > index
                   ? 'bg-success text-success-foreground'
                   : 'bg-muted text-muted-foreground'
               }`}>
-                {['upload', 'details', 'processing', 'success'].indexOf(step) > index ? '✓' : index + 1}
+                {['connect', 'upload', 'details', 'processing', 'success'].indexOf(step) > index ? '✓' : index + 1}
               </div>
               {index < 3 && (
                 <div className={`w-12 h-0.5 ml-2 ${
@@ -181,6 +262,66 @@ export const IssuePage: React.FC = () => {
 
         {/* Step Content */}
         <div className="space-y-8">
+          {/* Step 0: Wallet Connection */}
+          {step === 'connect' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Wallet className="h-5 w-5" />
+                    <span>Connect Hedera Wallet</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Connect your wallet to mint certificate NFTs on Hedera EVM
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {!walletConnected ? (
+                    <div className="text-center">
+                      <div className="bg-muted/30 rounded-lg p-8 mb-6">
+                        <Wallet className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">Wallet Required</h3>
+                        <p className="text-muted-foreground mb-6">
+                          You need a Hedera-compatible wallet to mint certificate NFTs. 
+                          Supported wallets include MetaMask and HashPack.
+                        </p>
+                        <Button onClick={connectWallet} size="lg" className="w-full">
+                          <Wallet className="mr-2 h-5 w-5" />
+                          Connect Wallet
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="p-4 border rounded-lg">
+                          <h4 className="font-medium mb-2">🦊 MetaMask</h4>
+                          <p className="text-muted-foreground">Most popular Ethereum wallet</p>
+                        </div>
+                        <div className="p-4 border rounded-lg">
+                          <h4 className="font-medium mb-2">🔥 HashPack</h4>
+                          <p className="text-muted-foreground">Native Hedera wallet</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="bg-green-50 rounded-lg p-6">
+                        <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-green-800 mb-2">Wallet Connected</h3>
+                        <p className="text-green-700 mb-4">
+                          Connected to: <code className="bg-green-100 px-2 py-1 rounded text-sm">{walletAddress}</code>
+                        </p>
+                        <Badge variant="secondary">Ready to mint NFTs</Badge>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Step 1: File Upload */}
           {step === 'upload' && (
             <motion.div
@@ -313,6 +454,19 @@ export const IssuePage: React.FC = () => {
                          />
                        </div>
                        <div className="space-y-2">
+                         <Label htmlFor="recipientAddress">Recipient Wallet Address *</Label>
+                         <Input
+                           id="recipientAddress"
+                           value={formData.recipientAddress}
+                           onChange={(e) => setFormData({...formData, recipientAddress: e.target.value})}
+                           placeholder="0x... (Hedera EVM address)"
+                           required
+                         />
+                         <p className="text-xs text-muted-foreground">
+                           The wallet address that will receive the certificate NFT
+                         </p>
+                       </div>
+                       <div className="space-y-2">
                          <Label htmlFor="issueDate">Issue Date *</Label>
                          <Input
                            id="issueDate"
@@ -360,7 +514,7 @@ export const IssuePage: React.FC = () => {
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <p>✓ Computing certificate hash</p>
                     <p>✓ Preparing transaction data</p>
-                    <p className="animate-pulse">⏳ Submitting to Hedera Consensus Service...</p>
+                    <p className="animate-pulse">⏳ Uploading to IPFS and minting NFT...</p>
                   </div>
                 </CardContent>
               </Card>
@@ -384,48 +538,118 @@ export const IssuePage: React.FC = () => {
 
               <Card className="shadow-elevated">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2 text-success">
+                  <CardTitle className="flex items-center space-x-2 text-green-600">
                     <CheckCircle className="h-5 w-5" />
-                    <span>Certificate Issued Successfully</span>
+                    <span>Certificate NFT Minted Successfully! 🎉</span>
                   </CardTitle>
                   <CardDescription>
-                    Your certificate is now secured on the blockchain
+                    Your certificate is now a secure NFT on the Hedera blockchain
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      Certificate NFT successfully minted and stored on IPFS with blockchain verification!
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* NFT Details */}
                     <div className="space-y-4">
+                      {tokenId && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">NFT Token ID</Label>
+                          <div className="mt-1 p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <code className="text-lg font-bold text-primary">#{tokenId}</code>
+                              <Badge variant="secondary">ERC-721</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Transaction ID</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">Transaction Hash</Label>
                         <div className="mt-1 p-3 bg-muted/50 rounded-lg">
-                          <code className="text-sm break-all">{transactionId}</code>
+                          <code className="text-xs break-all">{transactionHash}</code>
                         </div>
                       </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Verification URL</Label>
-                        <div className="mt-1 p-3 bg-muted/50 rounded-lg">
-                          <code className="text-xs break-all">{verificationUrl}</code>
+
+                      {ipfsData.metadataUrl && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">IPFS Metadata</Label>
+                          <div className="mt-1 p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <code className="text-xs break-all">{ipfsData.metadataHash}</code>
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={ipfsData.metadataUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="success" size="sm" asChild>
-                          <a href={`/verify?id=${transactionId}`}>
-                            View Certificate
+                      )}
+
+                      <div className="flex flex-wrap gap-2">
+                        {tokenId && (
+                          <Button variant="default" size="sm" asChild>
+                            <a href={`/verify?type=nft&tokenId=${tokenId}`}>
+                              <Image className="mr-2 h-4 w-4" />
+                              View NFT
+                            </a>
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" asChild>
+                          <a 
+                            href={`https://hashscan.io/testnet/transaction/${transactionHash}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            View on Explorer
                           </a>
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                          Issue Another
+                          Mint Another
                         </Button>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <Label className="text-sm font-medium text-muted-foreground">QR Code for Verification</Label>
-                      <div className="mt-2 p-4 bg-white rounded-lg inline-block">
-                        <QRCodeSVG value={verificationUrl} size={150} />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Share this QR code for easy verification
-                      </p>
+
+                    {/* NFT Preview & QR */}
+                    <div className="text-center space-y-4">
+                      {ipfsData.imageUrl && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Certificate NFT Image</Label>
+                          <div className="mt-2 p-4 bg-white rounded-lg border">
+                            <img 
+                              src={ipfsData.imageUrl} 
+                              alt="Certificate NFT" 
+                              className="w-full max-w-xs mx-auto rounded-lg shadow-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {tokenId && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">QR Code for Verification</Label>
+                          <div className="mt-2 p-4 bg-white rounded-lg inline-block border">
+                            <QRCodeSVG 
+                              value={CertificateCrypto.generateNFTQRData(
+                                tokenId, 
+                                import.meta.env.VITE_CONTRACT_ADDRESS || '',
+                                import.meta.env.VITE_HEDERA_NETWORK || 'testnet'
+                              )} 
+                              size={120} 
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Scan to verify certificate authenticity
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

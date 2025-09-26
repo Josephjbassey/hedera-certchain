@@ -1,239 +1,239 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Wallet, Shield, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { HederaContractService } from '@/services/hedera-contract';
 
-interface AuthPageProps {
-  onAuthSuccess: () => void;
-}
-
-export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+export const AuthPage: React.FC = () => {
+  const [walletAddress, setWalletAddress] = useState<string>('');
+  const [network, setNetwork] = useState<string>('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [walletInstalled, setWalletInstalled] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        onAuthSuccess();
+    // Check if MetaMask or compatible wallet is installed
+    setWalletInstalled(typeof window.ethereum !== 'undefined');
+
+    // Check if already connected
+    const checkConnection = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            setWalletAddress(accounts[0]);
+            // Auto-redirect if already connected
+            navigate('/');
+          }
+        } catch (error) {
+          console.log('Not connected to wallet');
+        }
       }
     };
-    checkUser();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session) {
-          onAuthSuccess();
-        }
-      }
-    );
+    checkConnection();
+  }, [navigate]);
 
-    return () => subscription.unsubscribe();
-  }, [onAuthSuccess]);
+  const handleWalletConnect = async () => {
+    if (!walletInstalled) {
+      toast({
+        title: "Wallet Not Found",
+        description: "Please install MetaMask or a compatible Web3 wallet to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+    setIsConnecting(true);
 
     try {
-      if (isLogin) {
-        // Login
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      // Create service instance (we'll get the contract address from env later)
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS_TESTNET || '';
+      const service = new HederaContractService(contractAddress, 'testnet');
 
-        if (error) throw error;
+      const result = await service.connectWallet();
+      
+      setWalletAddress(result.address);
+      setNetwork(result.network);
 
-        toast({
-          title: "Success",
-          description: "Logged in successfully!",
-        });
-      } else {
-        // Sign up
-        if (password !== confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
-        }
-
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "Account created! Please check your email to verify your account.",
-        });
-      }
-    } catch (error) {
-      console.error('Auth error:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Authentication failed',
+        title: "Wallet Connected!",
+        description: `Connected to ${result.network} with address ${result.address.slice(0, 6)}...${result.address.slice(-4)}`,
+      });
+
+      // Store connection info in localStorage
+      localStorage.setItem('walletAddress', result.address);
+      localStorage.setItem('networkName', result.network);
+
+      // Redirect to main app
+      setTimeout(() => navigate('/'), 1000);
+
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "Failed to connect wallet. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsConnecting(false);
     }
   };
 
+  const handleDisconnect = () => {
+    setWalletAddress('');
+    setNetwork('');
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('networkName');
+    toast({
+      title: "Wallet Disconnected",
+      description: "You have been successfully disconnected.",
+    });
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="max-w-md w-full space-y-8"
-      >
-        <div className="text-center">
-          <h2 className="text-3xl font-bold">
-            {isLogin ? 'Sign In' : 'Create Account'}
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            {isLogin 
-              ? 'Access your certificate management dashboard'
-              : 'Join Hedera CertChain to issue and verify certificates'
-            }
-          </p>
-        </div>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              {isLogin ? <LogIn className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-              <span>{isLogin ? 'Sign In' : 'Sign Up'}</span>
-            </CardTitle>
-            <CardDescription>
-              {isLogin 
-                ? 'Enter your credentials to access your account'
-                : 'Create a new account to get started'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center space-y-2"
+        >
+          <div className="flex justify-center">
+            <div className="relative">
+              <Shield className="w-16 h-16 text-blue-600" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-white" />
               </div>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Hedera CertChain</h1>
+          <p className="text-gray-600">Connect your wallet to access decentralized certificates</p>
+        </motion.div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
+        {/* Main Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border-2 border-blue-200 shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-gray-900">
+                {walletAddress ? 'Wallet Connected' : 'Connect Wallet'}
+              </CardTitle>
+              <CardDescription>
+                {walletAddress 
+                  ? 'Your wallet is connected and ready to use'
+                  : 'Connect your Web3 wallet to start issuing and verifying certificates'
+                }
+              </CardDescription>
+            </CardHeader>
 
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10"
-                      placeholder="Confirm your password"
-                      required
-                    />
-                  </div>
-                </div>
+            <CardContent className="space-y-4">
+              {!walletInstalled && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No Web3 wallet detected. Please install{' '}
+                    <a 
+                      href="https://metamask.io/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      MetaMask
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    {' '}or a compatible wallet.
+                  </AlertDescription>
+                </Alert>
               )}
 
-              <Button
-                type="submit"
-                variant="hero"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                    {isLogin ? 'Signing In...' : 'Creating Account...'}
-                  </>
-                ) : (
-                  <>
-                    {isLogin ? <LogIn className="mr-2 h-5 w-5" /> : <UserPlus className="mr-2 h-5 w-5" />}
-                    {isLogin ? 'Sign In' : 'Create Account'}
-                  </>
-                )}
-              </Button>
-            </form>
+              {walletAddress ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-medium">Connected Successfully</span>
+                    </div>
+                    <div className="mt-2 text-sm space-y-1">
+                      <p><strong>Address:</strong> {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}</p>
+                      <p><strong>Network:</strong> {network}</p>
+                    </div>
+                  </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="ml-1 text-primary hover:underline font-medium"
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => navigate('/')} 
+                      className="flex-1"
+                    >
+                      Continue to App
+                    </Button>
+                    <Button 
+                      onClick={handleDisconnect} 
+                      variant="outline"
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleWalletConnect}
+                  disabled={isConnecting || !walletInstalled}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                  size="lg"
                 >
-                  {isLogin ? 'Sign up' : 'Sign in'}
-                </button>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                  <Wallet className="w-5 h-5 mr-2" />
+                  {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                </Button>
+              )}
 
-        <Alert>
-          <AlertDescription className="text-center text-sm">
-            🔒 Your credentials are securely encrypted and stored with Supabase. 
-            We never share your personal information.
-          </AlertDescription>
-        </Alert>
-      </motion.div>
+              {/* Security Notice */}
+              <div className="text-center text-sm text-gray-600 space-y-2">
+                <p className="flex items-center justify-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  🔒 Your wallet connection is secure and decentralized
+                </p>
+                <p className="text-xs">
+                  We never store your private keys. All transactions are signed locally in your wallet.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-2 gap-4 text-center"
+        >
+          <div className="p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+            <Shield className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Secure</h3>
+            <p className="text-sm text-gray-600">Blockchain verified certificates</p>
+          </div>
+          <div className="p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
+            <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <h3 className="font-semibold text-gray-900">Verifiable</h3>
+            <p className="text-sm text-gray-600">Instantly verify authenticity</p>
+          </div>
+        </motion.div>
+
+        {/* Footer */}
+        <div className="text-center text-xs text-gray-500">
+          <p>Powered by Hedera Network</p>
+        </div>
+      </div>
     </div>
   );
 };
