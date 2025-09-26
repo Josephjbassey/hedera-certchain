@@ -20,14 +20,14 @@ export type Database = {
           completion_date: string
           course_name: string
           created_at: string
+          hedera_sequence_number: string | null
+          hedera_topic_id: string | null
           hedera_transaction_id: string | null
           id: string
           ipfs_hash: string | null
           issue_date: string
           issuer_name: string
           issuer_organization: string
-          nft_collection_id: string | null
-          nft_token_id: string | null
           recipient_email: string
           recipient_name: string
           status: string
@@ -39,14 +39,14 @@ export type Database = {
           completion_date: string
           course_name: string
           created_at?: string
+          hedera_sequence_number?: string | null
+          hedera_topic_id?: string | null
           hedera_transaction_id?: string | null
           id?: string
           ipfs_hash?: string | null
           issue_date?: string
           issuer_name: string
           issuer_organization: string
-          nft_collection_id?: string | null
-          nft_token_id?: string | null
           recipient_email: string
           recipient_name: string
           status?: string
@@ -58,14 +58,14 @@ export type Database = {
           completion_date?: string
           course_name?: string
           created_at?: string
+          hedera_sequence_number?: string | null
+          hedera_topic_id?: string | null
           hedera_transaction_id?: string | null
           id?: string
           ipfs_hash?: string | null
           issue_date?: string
           issuer_name?: string
           issuer_organization?: string
-          nft_collection_id?: string | null
-          nft_token_id?: string | null
           recipient_email?: string
           recipient_name?: string
           status?: string

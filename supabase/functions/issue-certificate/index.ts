@@ -18,6 +18,36 @@ interface IssueCertificateRequest {
   fileType: string;
 }
 
+// Production-ready topic management
+const getOrCreateCertificateTopic = async (client: any, operatorAccountId: string) => {
+  // Try to use existing topic first (stored in environment for production)
+  const existingTopicId = Deno.env.get('CERTIFICATE_TOPIC_ID');
+  if (existingTopicId) {
+    console.log('Using existing certificate topic:', existingTopicId);
+    return existingTopicId;
+  }
+
+  // Create new topic for certificate anchoring
+  const { TopicCreateTransaction } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
+  
+  const topicCreateTx = new TopicCreateTransaction()
+    .setTopicMemo("HederaCertChain Certificate Anchoring")
+    .setAdminKey(client.operatorPublicKey)
+    .setSubmitKey(client.operatorPublicKey);
+
+  const topicCreateResponse = await topicCreateTx.execute(client);
+  const topicCreateReceipt = await topicCreateResponse.getReceipt(client);
+  
+  if (!topicCreateReceipt.topicId) {
+    throw new Error('Failed to create certificate topic');
+  }
+  
+  const newTopicId = topicCreateReceipt.topicId.toString();
+  
+  console.log('Created new certificate topic:', newTopicId);
+  return newTopicId;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -42,15 +72,15 @@ serve(async (req) => {
 
     const body: IssueCertificateRequest = await req.json();
     
-    console.log('Starting secure certificate issuance for user:', user.id);
+    console.log('Starting certificate issuance for user:', user.id);
 
-    // Step 1: Generate comprehensive certificate with cryptographic integrity
+    console.log('Certificate request body:', body);
+
+    // Generate comprehensive certificate object with timestamp and issuer signature
     const issueTimestamp = new Date().toISOString();
-    const certificateId = crypto.randomUUID();
-    
     const certificateData = {
-      version: "2.0",
-      id: certificateId,
+      version: "1.0",
+      id: crypto.randomUUID(),
       recipientName: body.recipientName,
       recipientEmail: body.recipientEmail,
       issuerName: body.issuerName,
@@ -66,7 +96,7 @@ serve(async (req) => {
       }
     };
 
-    // Step 2: Create deterministic hash of certificate content for integrity
+    // Create deterministic hash of certificate content
     const encoder = new TextEncoder();
     const dataString = JSON.stringify(certificateData, Object.keys(certificateData).sort());
     const data = encoder.encode(dataString);
@@ -74,9 +104,29 @@ serve(async (req) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const certificateHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Generated certificate hash:', certificateHash);
+    // Create certificate record in database first
+    const { data: certificate, error: dbError } = await supabase
+      .from('certificates')
+      .insert({
+        user_id: user.id,
+        recipient_name: body.recipientName,
+        recipient_email: body.recipientEmail,
+        issuer_name: body.issuerName,
+        issuer_organization: body.issuerOrganization,
+        course_name: body.courseName,
+        completion_date: body.completionDate,
+        certificate_hash: certificateHash,
+        status: 'processing'
+      })
+      .select()
+      .single();
 
-    // Step 3: Upload certificate to IPFS via Pinata for immutable storage
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to create certificate record');
+    }
+
+    // Step 1: Upload certificate JSON to IPFS using Pinata
     const pinataApiKey = Deno.env.get('PINATA_API_KEY');
     const pinataSecretKey = Deno.env.get('PINATA_SECRET_API_KEY');
 
@@ -84,24 +134,23 @@ serve(async (req) => {
       throw new Error('IPFS credentials not configured');
     }
 
-    // Create JSON blob for IPFS
+    // Create JSON file for IPFS storage
     const certificateJsonBlob = new Blob([JSON.stringify(certificateData, null, 2)], { 
       type: 'application/json' 
     });
 
     const formData = new FormData();
-    formData.append('file', certificateJsonBlob, `certificate-${certificateId}.json`);
+    formData.append('file', certificateJsonBlob, `certificate-${certificateData.id}.json`);
     
     const metadata = JSON.stringify({
-      name: `SecureCertificate-${certificateId}`,
+      name: `Certificate-${certificateData.id}`,
       keyvalues: {
-        certificateId: certificateId,
+        certificateId: certificateData.id,
         recipientName: body.recipientName,
         courseName: body.courseName,
         hash: certificateHash,
         issuerUserId: user.id,
-        version: "2.0",
-        issueTimestamp: issueTimestamp
+        version: certificateData.version
       }
     });
     formData.append('pinataMetadata', metadata);
@@ -123,25 +172,25 @@ serve(async (req) => {
 
     if (!pinataResponse.ok) {
       const errorText = await pinataResponse.text();
-      console.error('Pinata upload failed:', errorText);
-      throw new Error(`Failed to upload certificate to IPFS: ${errorText}`);
+      console.error('Pinata error:', errorText);
+      throw new Error(`Failed to upload to IPFS: ${errorText}`);
     }
 
     const pinataData = await pinataResponse.json();
     const ipfsCid = pinataData.IpfsHash;
     
-    console.log('Certificate uploaded to IPFS with CID:', ipfsCid);
+    console.log('Certificate JSON uploaded to IPFS with CID:', ipfsCid);
 
-    // Step 4: Generate CID hash for Hedera Consensus Service anchoring
+    // Step 2: Generate CID hash for immutable anchoring to Hedera
     const cidEncoder = new TextEncoder();
     const cidData = cidEncoder.encode(ipfsCid);
     const cidHashBuffer = await crypto.subtle.digest('SHA-256', cidData);
     const cidHashArray = Array.from(new Uint8Array(cidHashBuffer));
     const cidHash = cidHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Generated CID hash for Hedera anchoring:', cidHash);
+    console.log('Generated CID hash for Hedera:', cidHash);
 
-    // Step 5: Anchor CID hash to Hedera Consensus Service
+    // Step 3: Submit immutable proof to Hedera HCS
     const hederaAccountId = Deno.env.get('HEDERA_ACCOUNT_ID');
     const hederaPrivateKey = Deno.env.get('HEDERA_PRIVATE_KEY');
 
@@ -154,8 +203,7 @@ serve(async (req) => {
       AccountId,
       PrivateKey,
       Client,
-      TopicMessageSubmitTransaction,
-      TopicId
+      TopicMessageSubmitTransaction
     } = await import("https://esm.sh/@hashgraph/sdk@2.64.5");
 
     // Create Hedera client
@@ -165,62 +213,50 @@ serve(async (req) => {
     
     client.setOperator(operatorAccountId, operatorPrivateKey);
 
-    // Use a dedicated topic for certificate anchoring (create if doesn't exist)
-    const certificateTopicId = "0.0.6903180"; // You should create this topic once and reuse
+    // Get or create certificate topic
+    const certificateTopicId = await getOrCreateCertificateTopic(client, hederaAccountId);
 
-    // Create consensus message with CID hash and issuer signature
-    const consensusMessage = JSON.stringify({
-      action: "ANCHOR_CERTIFICATE",
-      certificateId: certificateId,
+    // Create immutable proof message (only CID hash, not full certificate data)
+    const proofMessage = JSON.stringify({
+      type: "CERTIFICATE_PROOF",
+      version: "1.0",
+      certificateId: certificateData.id,
       ipfsCid: ipfsCid,
       cidHash: cidHash,
-      certificateHash: certificateHash,
       issuerUserId: user.id,
       issuerOrganization: body.issuerOrganization,
-      timestamp: issueTimestamp,
-      version: "2.0"
+      timestamp: Date.now(),
+      // Include minimal verification data
+      recipientHash: await hashString(body.recipientEmail),
+      courseHash: await hashString(body.courseName)
     });
 
-    const submitMessage = new TopicMessageSubmitTransaction()
-      .setTopicId(TopicId.fromString(certificateTopicId))
-      .setMessage(consensusMessage);
+    // Submit proof to certificate topic
+    const txTopicMessageSubmit = await new TopicMessageSubmitTransaction()
+      .setTopicId(certificateTopicId)
+      .setMessage(proofMessage);
 
-    const submitResponse = await submitMessage.execute(client);
-    const submitReceipt = await submitResponse.getReceipt(client);
-    
-    if (!submitReceipt.topicSequenceNumber) {
-      throw new Error('Failed to anchor certificate to Hedera Consensus Service');
-    }
-
-    const transactionId = submitResponse.transactionId.toString();
-    const sequenceNumber = submitReceipt.topicSequenceNumber.toString();
+    const txTopicMessageSubmitResponse = await txTopicMessageSubmit.execute(client);
+    const transactionId = txTopicMessageSubmitResponse.transactionId.toString();
 
     client.close();
 
-    console.log('Certificate anchored to Hedera. Transaction:', transactionId, 'Sequence:', sequenceNumber);
+    console.log('Certificate proof submitted to Hedera:', transactionId);
 
-    // Step 6: Store only essential metadata in Supabase (not the full certificate)
-    const { data: certificate, error: dbError } = await supabase
+    // Step 4: Update certificate record with secure data
+    const { error: updateError } = await supabase
       .from('certificates')
-      .insert({
-        user_id: user.id,
-        recipient_name: body.recipientName,
-        recipient_email: body.recipientEmail,
-        issuer_name: body.issuerName,
-        issuer_organization: body.issuerOrganization,
-        course_name: body.courseName,
-        completion_date: body.completionDate,
-        certificate_hash: certificateHash,
+      .update({
         ipfs_hash: ipfsCid,
+        hedera_topic_id: certificateTopicId,
         hedera_transaction_id: transactionId,
         status: 'issued'
       })
-      .select()
-      .single();
+      .eq('id', certificate.id);
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw new Error('Failed to create certificate record');
+    if (updateError) {
+      console.error('Failed to update certificate:', updateError);
+      throw new Error('Failed to finalize certificate issuance');
     }
 
     const verificationUrl = `${req.headers.get('origin')}/verify?cid=${ipfsCid}`;
@@ -229,21 +265,19 @@ serve(async (req) => {
       success: true,
       certificateId: certificate.id,
       transactionId,
-      sequenceNumber,
+      topicId: certificateTopicId,
       ipfsCid,
       cidHash,
-      certificateHash,
       verificationUrl,
       ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCid}`,
       hashscanUrl: `https://hashscan.io/testnet/tx/${transactionId}`,
-      consensusUrl: `https://hashscan.io/testnet/topic/${certificateTopicId}`,
-      message: "Certificate securely issued with triple-layer proof: IPFS + Hedera + Cryptographic hash"
+      message: "Certificate successfully issued with cryptographic proof on Hedera blockchain"
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error issuing secure certificate:', error);
+    console.error('Error issuing certificate:', error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -253,3 +287,12 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to create deterministic hashes
+async function hashString(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
