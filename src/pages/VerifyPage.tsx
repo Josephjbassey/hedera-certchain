@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { HederaContractService } from '@/services/hedera-contract';
+import { MirrorNodeClient } from '@/services/mirrorNodeClient';
+import { getCurrentNetwork } from '@/config/networks';
 
 export const VerifyPage: React.FC = () => {
   const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('file_upload');
