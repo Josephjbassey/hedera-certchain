@@ -10,7 +10,7 @@
  */
 
 /* Configuration exports */
-export * from './config/app.config';
+export * from './config/config';
 
 /* Type definitions exports */
 export * from './types';

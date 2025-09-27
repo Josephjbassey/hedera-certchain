@@ -1,27 +1,24 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Menu, X, LogOut, User } from 'lucide-react';
+import { Shield, Menu, X, Wallet, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import logoImage from '@/assets/hedera-certchain-logo.png';
-
-interface WalletUser {
-  address: string;
-  network: string;
-}
+import { useWalletInterface } from '../services/wallets/useWalletInterface';
+import { WalletSelectionDialog } from './WalletSelectionDialog';
 
 interface LayoutProps {
   children: React.ReactNode;
-  user?: WalletUser | null;
-  onLogout?: () => void;
 }
 
 /**
- * Main layout component with responsive navigation
- * Provides consistent header across all pages
+ * Main layout component with responsive navigation and wallet integration
+ * Provides consistent header across all pages with Hedera wallet connection
  */
-export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
+export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [walletDialogOpen, setWalletDialogOpen] = useState(false);
+  const { accountId, walletInterface } = useWalletInterface();
 
   const navigationItems = [
     { name: 'Home', href: '/' },
@@ -68,24 +65,29 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 </motion.div>
               ))}
               
-              {/* Auth Section */}
-              {user && (
-                <div className="flex items-center space-x-2 ml-4">
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    <span>{user.address.slice(0, 6)}...{user.address.slice(-4)}</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onLogout}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <LogOut className="h-4 w-4 mr-1" />
-                    Logout
-                  </Button>
-                </div>
-              )}
+              {/* Wallet Connection Section */}
+              <div className="flex items-center space-x-2 ml-4">
+                <Button
+                  variant={accountId ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => {
+                    if (accountId) {
+                      walletInterface?.disconnect();
+                    } else {
+                      setWalletDialogOpen(true);
+                    }
+                  }}
+                  className="flex items-center space-x-2"
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span>
+                    {accountId 
+                      ? `${accountId.slice(0, 6)}...${accountId.slice(-4)}`
+                      : 'Connect Wallet'
+                    }
+                  </span>
+                </Button>
+              </div>
             </nav>
 
             {/* Mobile menu button */}
@@ -127,25 +129,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                     </a>
                   </Button>
                 ))}
-                 {user && (
-                   <div className="flex flex-col space-y-2 pt-2 border-t border-border">
-                     <div className="flex items-center space-x-2 text-sm text-muted-foreground px-3 py-2">
-                       <User className="h-4 w-4" />
-                       <span>{user.address.slice(0, 6)}...{user.address.slice(-4)}</span>
-                     </div>
-                     <Button
-                       variant="outline"
-                       onClick={() => {
-                         onLogout?.();
-                         setIsMobileMenuOpen(false);
-                       }}
-                       className="justify-start text-muted-foreground hover:text-foreground"
-                     >
-                       <LogOut className="h-4 w-4 mr-2" />
-                       Logout
-                     </Button>
-                   </div>
-                 )}
+                 <div className="flex flex-col space-y-2 pt-2 border-t border-border">
+                   <Button
+                     variant={accountId ? "outline" : "default"}
+                     onClick={() => {
+                       if (accountId) {
+                         walletInterface?.disconnect();
+                       } else {
+                         setWalletDialogOpen(true);
+                       }
+                       setIsMobileMenuOpen(false);
+                     }}
+                     className="justify-start"
+                   >
+                     <Wallet className="h-4 w-4 mr-2" />
+                     {accountId 
+                       ? `${accountId.slice(0, 6)}...${accountId.slice(-4)}`
+                       : 'Connect Wallet'
+                     }
+                   </Button>
+                 </div>
               </div>
             </motion.div>
           )}
@@ -177,6 +180,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           </div>
         </div>
       </footer>
+
+      {/* Wallet Connection Dialog */}
+      <WalletSelectionDialog 
+        open={walletDialogOpen}
+        setOpen={setWalletDialogOpen}
+        onClose={() => setWalletDialogOpen(false)}
+      />
     </div>
   );
 };
