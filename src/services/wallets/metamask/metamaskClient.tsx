@@ -1,6 +1,6 @@
 import { ContractId, AccountId } from "@hashgraph/sdk";
 import { TokenId } from "@hashgraph/sdk";
-import { ethers, BrowserProvider } from "ethers";
+import { ethers } from "ethers";
 import { useContext, useEffect } from "react";
 import { appConfig } from "../../../config";
 import { MetamaskContext } from "../../../contexts/MetamaskContext";
@@ -47,7 +47,7 @@ const getProvider = () => {
     throw new Error("Metamask is not installed! Go install the extension!");
   }
 
-  return new BrowserProvider(ethereum);
+  return new ethers.providers.Web3Provider(ethereum);
 }
 
 // returns a list of accounts
@@ -91,7 +91,7 @@ class MetaMaskWallet implements WalletInterface {
     // build the transaction
     const tx = await signer.populateTransaction({
       to: this.convertAccountIdToSolidityAddress(toAddress),
-      value: ethers.parseEther(amount.toString()),
+      value: ethers.utils.parseEther(amount.toString()),
     });
     try {
       // send the transaction
