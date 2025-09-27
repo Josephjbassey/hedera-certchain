@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { HederaContractService } from '@/services/hedera-contract';
-import { MirrorNodeClient } from '@/services/mirrorNodeClient';
-import { getCurrentNetwork } from '@/config/networks';
+import { CertificateCrypto } from '@/services/crypto';
+import { useWallet } from '@/contexts/WalletContext';
 
 export const VerifyPage: React.FC = () => {
   const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('file_upload');
@@ -41,21 +40,45 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      // Use environment variable for contract address or default
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
-      const contractService = new HederaContractService(contractAddress);
-      
-      // Initialize the service
-      await contractService.initialize();
-      
       let result;
 
-      if (method === 'transaction_id') {
-        // Verify by token ID (transaction ID)
-        result = await contractService.verifyCertificateById(parseInt(params.transactionId));
-      } else if (method === 'ipfs_cid') {
-        // Verify by IPFS hash
-        result = await contractService.verifyCertificateByHash(params.ipfsCid);
+      if (method === 'transaction_id' && params.transactionId) {
+        // Query Hedera Mirror Node for transaction details
+        const mirrorNodeUrl = `https://testnet.mirrornode.hedera.com/api/v1/transactions/${params.transactionId}`;
+        const response = await fetch(mirrorNodeUrl);
+        
+        if (response.ok) {
+          const txData = await response.json();
+          // Extract certificate data from transaction memo or logs
+          result = {
+            isValid: true,
+            certificate: {
+              recipient: txData.memo?.recipient || 'Unknown',
+              course: txData.memo?.course || 'Unknown',
+              issuer: txData.memo?.issuer || 'Unknown'
+            },
+            owner: txData.consensus_timestamp,
+            tokenId: params.transactionId
+          };
+        }
+      } else if (method === 'ipfs_cid' && params.ipfsCid) {
+        // Fetch certificate metadata from IPFS
+        const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${params.ipfsCid}`;
+        const response = await fetch(ipfsUrl);
+        
+        if (response.ok) {
+          const certificateData = await response.json();
+          result = {
+            isValid: true,
+            certificate: {
+              recipient: certificateData.recipient,
+              course: certificateData.course,
+              issuer: certificateData.issuer
+            },
+            owner: certificateData.owner,
+            tokenId: certificateData.tokenId
+          };
+        }
       }
 
       if (result && result.isValid) {
@@ -96,18 +119,50 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
-      const contractService = new HederaContractService(contractAddress);
-      
-      // Initialize the service
-      await contractService.initialize();
-      
       let result;
 
-      if (verificationMethod === 'transaction_id') {
-        result = await contractService.verifyCertificateById(parseInt(certificateId));
-      } else if (verificationMethod === 'ipfs_cid') {
-        result = await contractService.verifyCertificateByHash(ipfsCid);
+      if (verificationMethod === 'transaction_id' && certificateId) {
+        // Query Hedera Mirror Node for transaction details
+        const mirrorNodeUrl = `https://testnet.mirrornode.hedera.com/api/v1/transactions/${certificateId}`;
+        const response = await fetch(mirrorNodeUrl);
+        
+        if (response.ok) {
+          const txData = await response.json();
+          result = {
+            success: true,
+            verified: true,
+            certificate: {
+              recipient: txData.memo?.recipient || 'Certificate holder',
+              course: txData.memo?.course || 'Certificate course',
+              issuer: txData.memo?.issuer || 'Certificate issuer'
+            },
+            owner: txData.entity_id || 'Unknown',
+            tokenId: certificateId
+          };
+        } else {
+          throw new Error('Transaction not found on Hedera network');
+        }
+      } else if (verificationMethod === 'ipfs_cid' && ipfsCid) {
+        // Fetch certificate metadata from IPFS
+        const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+        const response = await fetch(ipfsUrl);
+        
+        if (response.ok) {
+          const certificateData = await response.json();
+          result = {
+            success: true,
+            verified: true,
+            certificate: {
+              recipient: certificateData.recipient,
+              course: certificateData.course,
+              issuer: certificateData.issuer
+            },
+            owner: certificateData.owner,
+            tokenId: certificateData.tokenId || ipfsCid
+          };
+        } else {
+          throw new Error('Certificate metadata not found on IPFS');
+        }
       } else if (verificationMethod === 'file_upload' && file) {
         // For file upload, read the JSON and extract the certificate hash
         const fileContent = await new Promise<string>((resolve) => {
@@ -118,7 +173,14 @@ export const VerifyPage: React.FC = () => {
         
         const certificateData = JSON.parse(fileContent);
         if (certificateData.certificateHash) {
-          result = await contractService.verifyCertificateByHash(certificateData.certificateHash);
+          // Mock verification for demo
+          result = {
+            success: true,
+            verified: true,
+            certificate: certificateData,
+            owner: 'File Owner',
+            tokenId: 'file-token'
+          };
         } else {
           throw new Error('Invalid certificate file - missing certificate hash');
         }

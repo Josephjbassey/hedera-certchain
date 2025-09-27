@@ -246,12 +246,23 @@ Please use the contract interface to mint the NFT with:
 - Certificate Hash: ${certificateHash}
       `);
       
-      // Simulate minting result for demo
-      const mockTokenId = Math.floor(Math.random() * 1000000);
-      const mockTransactionHash = '0x' + Math.random().toString(16).substring(2, 66);
+      // The actual minting will be handled by the deployed smart contract
+      // For now, we store the certificate data and show instructions for manual minting
+      const certificateData = {
+        recipient: formData.recipientAddress || user.address,
+        course: formData.courseName,
+        issuer: formData.issuer,
+        ipfsHash: metadataUploadResult.cid || '',
+        certificateHash,
+        timestamp: Date.now()
+      };
       
-      setTokenId(mockTokenId);
-      setTransactionHash(mockTransactionHash);
+      // Store certificate data locally for reference
+      localStorage.setItem(`certificate_${certificateHash}`, JSON.stringify(certificateData));
+      
+      // Set placeholder values for UI - user must complete minting through wallet
+      setTokenId(0);
+      setTransactionHash(''); // Will be set after actual transaction
       setStep('success');
       
     } catch (error) {
