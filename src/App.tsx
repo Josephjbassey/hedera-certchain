@@ -8,15 +8,13 @@ import { Layout } from "./components/Layout";
 import LandingPage from "./pages/LandingPage";
 import IssuePage from "./pages/IssuePage";
 import VerifyPage from "./pages/VerifyPage";
-import AuthPage from "./pages/AuthPage";
-import SetupPage from "./pages/SetupPage";
 import NotFound from "./pages/NotFound";
 import { WalletProvider, useWallet } from "./contexts/WalletContext";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { isConnected } = useWallet();
+  const { isConnected, user } = useWallet();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -24,17 +22,10 @@ const AppContent = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Layout>
+          <Layout user={user} onLogout={() => {}}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/setup" element={<SetupPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route 
-                path="/issue" 
-                element={
-                  isConnected ? <IssuePage /> : <AuthPage />
-                } 
-              />
+              <Route path="/issue" element={<IssuePage />} />
               <Route path="/verify" element={<VerifyPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
