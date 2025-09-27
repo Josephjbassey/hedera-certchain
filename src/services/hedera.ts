@@ -150,8 +150,8 @@ class HederaService {
       const txResult = await submitTx.execute(this.client);
       const receipt = await txResult.getReceipt(this.client);
       
-      // Get consensus timestamp
-      const consensusTimestamp = receipt.consensusTimestamp?.toDate().toISOString();
+      // Use current timestamp as consensusTimestamp is not available in receipt
+      const consensusTimestamp = new Date().toISOString();
 
       console.log('Certificate proof submitted to blockchain:', {
         transactionId: txResult.transactionId.toString(),
