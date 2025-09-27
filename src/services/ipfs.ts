@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { CertificateCrypto, NFTFileProcessor } from '@/lib/crypto';
+import { CertificateCrypto } from '@/services/crypto';
 
 export interface IPFSUploadResult {
   success: boolean;
@@ -293,20 +293,9 @@ class IPFSService {
     try {
       console.log('🎨 Creating NFT certificate...');
 
-      // Step 1: Generate NFT-optimized certificate image
-      const nftImage = await NFTFileProcessor.generateNFTCertificateImage(
-        certificateData.file,
-        {
-          recipientName: certificateData.recipientName,
-          courseName: certificateData.courseName,
-          issuerName: certificateData.issuerName,
-          completionDate: certificateData.completionDate
-        }
-      );
-
-      // Step 2: Upload certificate image to IPFS
+      // Step 1: Use original certificate file as NFT image
       console.log('📤 Uploading certificate image...');
-      const imageUpload = await this.uploadFile(nftImage, {
+      const imageUpload = await this.uploadFile(certificateData.file, {
         issuer: certificateData.issuerName,
         recipient: certificateData.recipientName,
         course: certificateData.courseName,
@@ -318,10 +307,19 @@ class IPFSService {
       }
 
       // Step 3: Create NFT metadata
-      const metadata: NFTMetadata = CertificateCrypto.generateNFTMetadata({
+      const baseMetadata = CertificateCrypto.generateNFTMetadata({
         ...certificateData,
         certificateImageUrl: imageUpload.url!
       });
+
+      const metadata: NFTMetadata = {
+        ...baseMetadata,
+        properties: {
+          issuer: certificateData.issuerName,
+          course: certificateData.courseName,
+          recipient: certificateData.recipientName
+        }
+      };
 
       // Step 4: Upload metadata to IPFS
       console.log('📤 Uploading NFT metadata...');
