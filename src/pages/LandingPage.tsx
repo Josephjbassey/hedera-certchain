@@ -74,15 +74,9 @@ export const LandingPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
+              className="flex justify-center mb-12"
             >
               <Button variant="hero" size="lg" asChild className="text-lg px-8 py-6">
-                <a href="/setup">
-                  Setup Guide
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
-              </Button>
-              <Button variant="outline" size="lg" asChild className="text-lg px-8 py-6">
                 <a href="/verify">
                   Verify Certificate
                 </a>
