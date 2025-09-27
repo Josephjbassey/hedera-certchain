@@ -127,7 +127,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                     </a>
                   </Button>
                 ))}
-                 {user ? (
+                 {user && (
                    <div className="flex flex-col space-y-2 pt-2 border-t border-border">
                      <div className="flex items-center space-x-2 text-sm text-muted-foreground px-3 py-2">
                        <User className="h-4 w-4" />
