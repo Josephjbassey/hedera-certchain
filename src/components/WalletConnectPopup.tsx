@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Dialog, 
@@ -69,18 +69,82 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
   isConnecting = false
 }) => {
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const [walletStates, setWalletStates] = useState<Record<string, boolean>>({});
+
+  // Refresh wallet detection when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Wallet popup opened, checking wallet availability...');
+      
+      const checkWallets = () => {
+        const states: Record<string, boolean> = {};
+        WALLET_OPTIONS.forEach(wallet => {
+          states[wallet.id] = getWalletAvailability(wallet.id);
+        });
+        setWalletStates(states);
+      };
+      
+      // Check immediately
+      checkWallets();
+      
+      // Check again after a short delay in case wallets inject asynchronously
+      const timeoutId = setTimeout(checkWallets, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen]);
 
   // Check if wallets are installed
   const getWalletAvailability = (walletId: string): boolean => {
+    if (typeof window === 'undefined') return false;
+    
+    // Debug logging to see what's available
+    console.log('Checking wallet availability for:', walletId);
+    console.log('Window object keys:', Object.keys(window).filter(key => 
+      key.toLowerCase().includes('hashpack') || 
+      key.toLowerCase().includes('blade') || 
+      key.toLowerCase().includes('kabila') ||
+      key.toLowerCase().includes('ethereum')
+    ));
+    
     switch (walletId) {
       case 'metamask':
-        return typeof window !== 'undefined' && !!(window as any).ethereum?.isMetaMask;
+        const hasMetaMask = !!(window as any).ethereum?.isMetaMask;
+        console.log('MetaMask detected:', hasMetaMask);
+        return hasMetaMask;
+        
       case 'hashpack':
-        return typeof window !== 'undefined' && !!(window as any).hashpack;
+        // HashPack detection - check multiple possible injection points
+        const hashpackProviders = [
+          (window as any).hashpack,
+          (window as any).HashPack,
+          (window as any).ethereum?.isHashPack,
+          (window as any).hederaWallets?.hashpack,
+          // HashPack specifically injects into window.hashpack
+          typeof (window as any).hashpack !== 'undefined' && (window as any).hashpack
+        ];
+        
+        const hasHashPack = hashpackProviders.some(provider => !!provider);
+        console.log('HashPack detection results:', {
+          hashpack: (window as any).hashpack,
+          HashPack: (window as any).HashPack,
+          ethereumHashPack: (window as any).ethereum?.isHashPack,
+          hederaWallets: (window as any).hederaWallets,
+          final: hasHashPack
+        });
+        
+        return hasHashPack;
+        
       case 'blade':
-        return typeof window !== 'undefined' && !!(window as any).blade;
+        const hasBlade = !!(window as any).blade || !!(window as any).Blade;
+        console.log('Blade detected:', hasBlade);
+        return hasBlade;
+        
       case 'kabila':
-        return typeof window !== 'undefined' && !!(window as any).kabila;
+        const hasKabila = !!(window as any).kabila || !!(window as any).Kabila;
+        console.log('Kabila detected:', hasKabila);
+        return hasKabila;
+        
       default:
         return true; // WalletConnect doesn't require installation check
     }
@@ -101,6 +165,15 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
     window.open(installUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const refreshWalletDetection = () => {
+    console.log('Manually refreshing wallet detection...');
+    const states: Record<string, boolean> = {};
+    WALLET_OPTIONS.forEach(wallet => {
+      states[wallet.id] = getWalletAvailability(wallet.id);
+    });
+    setWalletStates(states);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -119,7 +192,7 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
           <div className="space-y-3">
             <AnimatePresence>
               {WALLET_OPTIONS.map((wallet) => {
-                const isInstalled = getWalletAvailability(wallet.id);
+                const isInstalled = walletStates[wallet.id] ?? getWalletAvailability(wallet.id);
                 const isSelected = selectedWallet === wallet.id;
                 const isCurrentlyConnecting = isConnecting && isSelected;
 
@@ -191,14 +264,28 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
             </AnimatePresence>
           </div>
 
-          <div className="text-xs text-muted-foreground border-t pt-4">
-            <p className="mb-2">📱 <strong>New to crypto wallets?</strong></p>
-            <p>
-              We recommend starting with <strong>MetaMask</strong> - it's beginner-friendly and works great with Hedera.
-            </p>
+          <div className="text-xs text-muted-foreground border-t pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="mb-1">📱 <strong>New to crypto wallets?</strong></p>
+                <p>We recommend starting with <strong>MetaMask</strong> - it's beginner-friendly and works great with Hedera.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between text-xs">
+              <span>Don't see your wallet?</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={refreshWalletDetection}
+                className="text-xs h-auto py-1 px-2"
+              >
+                🔄 Refresh Detection
+              </Button>
+            </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={isConnecting}>
               Cancel
             </Button>
