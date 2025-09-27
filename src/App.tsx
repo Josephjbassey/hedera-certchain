@@ -10,6 +10,7 @@ import IssuePage from "./pages/IssuePage";
 import VerifyPage from "./pages/VerifyPage";
 import NotFound from "./pages/NotFound";
 import { WalletProvider, useWallet } from "./contexts/WalletContext";
+import { AllWalletsProvider } from "./services/wallets/AllWalletsProvider";
 
 const queryClient = new QueryClient();
 
@@ -39,9 +40,11 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <WalletProvider>
-      <AppContent />
-    </WalletProvider>
+    <AllWalletsProvider>
+      <WalletProvider>
+        <AppContent />
+      </WalletProvider>
+    </AllWalletsProvider>
   );
 };
 
