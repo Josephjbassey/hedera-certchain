@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { HederaContractService } from '@/services/hedera-contract';
 import { WalletContractDeployment } from '@/services/wallet-deployment';
 import { AccountId } from '@hashgraph/sdk';
-import { HederaWalletConnect } from '@hashgraph/hedera-wallet-connect';
 
 export interface WalletUser {
   accountId: string;
@@ -16,7 +14,6 @@ interface WalletContextType {
   isConnected: boolean;
   user: WalletUser | null;
   accountId: string | null;
-  contractService: HederaContractService | null;
   deploymentService: WalletContractDeployment | null;
   connectWallet: (walletType?: string) => Promise<WalletUser>;
   disconnectWallet: () => void;
@@ -43,7 +40,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [user, setUser] = useState<WalletUser | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
-  const [contractService, setContractService] = useState<HederaContractService | null>(null);
   const [deploymentService, setDeploymentService] = useState<WalletContractDeployment | null>(null);
 
   useEffect(() => {
@@ -105,13 +101,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       
       // Initialize services
       const deployment = new WalletContractDeployment();
-      const contractAddress = deployment.getStoredContractAddress() || '0x0000000000000000000000000000000000000000';
-      const contract = new HederaContractService(contractAddress);
       
       setUser(walletUser);
       setAccountId(walletUser.accountId);
       setIsConnected(true);
-      setContractService(contract);
       setDeploymentService(deployment);
       
       saveSession(walletUser);
@@ -181,7 +174,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     setIsConnected(false);
     setUser(null);
     setAccountId(null);
-    setContractService(null);
     setDeploymentService(null);
     
     localStorage.removeItem('hedera-certchain-session');
@@ -192,7 +184,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     isConnected,
     user,
     accountId,
-    contractService,
     deploymentService,
     connectWallet,
     disconnectWallet,
