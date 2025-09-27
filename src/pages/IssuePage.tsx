@@ -152,8 +152,14 @@ Click OK to open Remix IDE.
       
       try {
         // Generate certificate hash
-        const hash = await CertificateCrypto.generateHash(
-          await uploadedFile.arrayBuffer()
+        const hash = CertificateCrypto.generateCertificateHash(
+          {
+            recipientName: formData.recipientName,
+            recipientEmail: formData.recipientEmail,
+            issuerName: formData.issuer,
+            courseName: formData.courseName,
+            completionDate: formData.issueDate,
+          }
         );
         setCertificateHash(hash);
         
@@ -194,7 +200,7 @@ Click OK to open Remix IDE.
       setIpfsData(prev => ({
         ...prev,
         imageUrl: imageUploadResult.url,
-        imageHash: imageUploadResult.ipfsHash
+        imageHash: imageUploadResult.cid || ''
       }));
 
       // Step 3: Create and upload metadata to IPFS
@@ -217,7 +223,7 @@ Click OK to open Remix IDE.
           issuer: formData.issuer,
           issueDate: formData.issueDate,
           certificateHash: certificateHash,
-          imageHash: imageUploadResult.ipfsHash
+          imageHash: imageUploadResult.cid || ''
         }
       };
       
@@ -227,7 +233,7 @@ Click OK to open Remix IDE.
       setIpfsData(prev => ({
         ...prev,
         metadataUrl: metadataUploadResult.url,
-        metadataHash: metadataUploadResult.ipfsHash
+        metadataHash: metadataUploadResult.cid || ''
       }));
 
       // Step 4: Simulate NFT minting (replace with actual contract call)
@@ -242,7 +248,7 @@ Metadata: ${metadataUploadResult.url}
 
 Please use the contract interface to mint the NFT with:
 - Recipient: ${formData.recipientAddress || user.address}
-- IPFS Hash: ${metadataUploadResult.ipfsHash}
+- IPFS Hash: ${metadataUploadResult.cid}
 - Certificate Hash: ${certificateHash}
       `);
       
