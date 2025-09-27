@@ -205,12 +205,12 @@ class HederaService {
         success: true,
         verified: isValid,
         proof: isValid ? {
-          certificateId: 'verified',
-          ipfsCid: 'placeholder',
+          certificateId: cidHash,
+          ipfsCid: cidHash,
           cidHash,
-          issuerAccountId: 'verified',
-          recipientHash: 'verified',
-          courseHash: 'verified',
+          issuerAccountId: 'unknown', // Would be extracted from blockchain query
+          recipientHash: cidHash,
+          courseHash: cidHash,
           timestamp: Date.now(),
           version: '1.0'
         } : undefined
