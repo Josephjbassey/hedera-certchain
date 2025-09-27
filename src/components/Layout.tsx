@@ -25,7 +25,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   const navigationItems = [
     { name: 'Home', href: '/' },
-    { name: 'Setup Guide', href: '/setup' },
     { name: 'Issue Certificate', href: '/issue' },
     { name: 'Verify Certificate', href: '/verify' },
   ];
@@ -70,7 +69,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               ))}
               
               {/* Auth Section */}
-              {user ? (
+              {user && (
                 <div className="flex items-center space-x-2 ml-4">
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4" />
@@ -86,16 +85,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                     Logout
                   </Button>
                 </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                >
-                  <Button variant="hero" asChild className="ml-4">
-                    <a href="/auth">Sign In</a>
-                  </Button>
-                </motion.div>
               )}
             </nav>
 
@@ -156,12 +145,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                        Logout
                      </Button>
                    </div>
-                 ) : (
-                   <Button variant="hero" asChild className="mt-4">
-                     <a href="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                       Sign In
-                     </a>
-                   </Button>
                  )}
               </div>
             </motion.div>
