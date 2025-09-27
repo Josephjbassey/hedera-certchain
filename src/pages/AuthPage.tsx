@@ -6,95 +6,55 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { HederaContractService } from '@/services/hedera-contract';
+import { useWallet } from '@/contexts/WalletContext';
 
 export const AuthPage: React.FC = () => {
-  const [walletAddress, setWalletAddress] = useState<string>('');
-  const [network, setNetwork] = useState<string>('');
-  const [isConnecting, setIsConnecting] = useState(false);
+  const { isConnected, user, connectWallet, isConnecting } = useWallet();
   const [walletInstalled, setWalletInstalled] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check if MetaMask or compatible wallet is installed
-    setWalletInstalled(typeof window.ethereum !== 'undefined');
+    if (typeof window.ethereum !== 'undefined') {
+      setWalletInstalled(true);
+    }
+  }, []);
 
-    // Check if already connected
-    const checkConnection = async () => {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0]);
-            // Auto-redirect if already connected
-            navigate('/');
-          }
-        } catch (error) {
-          console.log('Not connected to wallet');
-        }
-      }
-    };
-
-    checkConnection();
-  }, [navigate]);
-
-  const handleWalletConnect = async () => {
-    if (!walletInstalled) {
+  const handleConnect = async () => {
+    if (!window.ethereum) {
       toast({
-        title: "Wallet Not Found",
-        description: "Please install MetaMask or a compatible Web3 wallet to continue.",
+        title: "No Wallet Found",
+        description: "Please install MetaMask or another compatible wallet",
         variant: "destructive",
       });
       return;
     }
 
-    setIsConnecting(true);
-
     try {
-      // Create service instance (we'll get the contract address from env later)
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS_TESTNET || '';
-      const service = new HederaContractService(contractAddress, 'testnet');
-
-      const result = await service.connectWallet();
-      
-      setWalletAddress(result.address);
-      setNetwork(result.network);
+      await connectWallet('metamask');
 
       toast({
         title: "Wallet Connected!",
-        description: `Connected to ${result.network} with address ${result.address.slice(0, 6)}...${result.address.slice(-4)}`,
+        description: `Connected to ${user?.network || 'Hedera'} with address ${user?.address.slice(0, 6)}...${user?.address.slice(-4)}`,
       });
-
-      // Store connection info in localStorage
-      localStorage.setItem('walletAddress', result.address);
-      localStorage.setItem('networkName', result.network);
-
-      // Redirect to main app
-      setTimeout(() => navigate('/'), 1000);
+      
+      // Navigate to issue page after successful connection
+      setTimeout(() => {
+        navigate('/issue');
+      }, 1500);
 
     } catch (error) {
-      console.error('Wallet connection failed:', error);
+      console.error('Connection failed:', error);
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect wallet. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to connect to wallet",
         variant: "destructive",
       });
-    } finally {
-      setIsConnecting(false);
     }
   };
 
-  const handleDisconnect = () => {
-    setWalletAddress('');
-    setNetwork('');
-    localStorage.removeItem('walletAddress');
-    localStorage.removeItem('networkName');
-    toast({
-      title: "Wallet Disconnected",
-      description: "You have been successfully disconnected.",
-    });
-  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex flex-col items-center justify-center p-4">
@@ -126,10 +86,10 @@ export const AuthPage: React.FC = () => {
           <Card className="border-2 border-blue-200 shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl text-gray-900">
-                {walletAddress ? 'Wallet Connected' : 'Connect Wallet'}
+                {isConnected ? 'Wallet Connected' : 'Connect Wallet'}
               </CardTitle>
               <CardDescription>
-                {walletAddress 
+                {isConnected 
                   ? 'Your wallet is connected and ready to use'
                   : 'Connect your Web3 wallet to start issuing and verifying certificates'
                 }
@@ -156,7 +116,7 @@ export const AuthPage: React.FC = () => {
                 </Alert>
               )}
 
-              {walletAddress ? (
+              {isConnected && user ? (
                 <div className="space-y-4">
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2 text-green-700">
@@ -164,29 +124,23 @@ export const AuthPage: React.FC = () => {
                       <span className="font-medium">Connected Successfully</span>
                     </div>
                     <div className="mt-2 text-sm space-y-1">
-                      <p><strong>Address:</strong> {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}</p>
-                      <p><strong>Network:</strong> {network}</p>
+                      <p><strong>Address:</strong> {user.address.slice(0, 8)}...{user.address.slice(-8)}</p>
+                      <p><strong>Network:</strong> {user.network}</p>
                     </div>
                   </div>
 
                   <div className="flex gap-2">
                     <Button 
-                      onClick={() => navigate('/')} 
+                      onClick={() => navigate('/issue')} 
                       className="flex-1"
                     >
                       Continue to App
-                    </Button>
-                    <Button 
-                      onClick={handleDisconnect} 
-                      variant="outline"
-                    >
-                      Disconnect
                     </Button>
                   </div>
                 </div>
               ) : (
                 <Button
-                  onClick={handleWalletConnect}
+                  onClick={handleConnect}
                   disabled={isConnecting || !walletInstalled}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
                   size="lg"
