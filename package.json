@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy:setup": "tsx scripts/deploy-simple.ts",
+    "deploy:hedera": "tsx scripts/deploy-sdk.ts",
     "deploy:guide": "echo '📖 Follow the deployment guide at https://remix.ethereum.org/'",
     "contract:check": "tsx scripts/check-deployment.ts"
   },
@@ -54,7 +55,6 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "ethers": "^6.14.0",
     "framer-motion": "^12.23.21",
     "hashconnect": "^0.1.7",
     "input-otp": "^1.4.2",
@@ -90,6 +90,7 @@
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "ethers": "^6.15.0",
     "globals": "^15.15.0",
     "hardhat": "^3.0.6",
     "lovable-tagger": "^1.1.9",
