@@ -1,17 +1,27 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { HederaContractService } from '@/services/hedera-contract';
+import { WalletContractDeployment } from '@/services/wallet-deployment';
+import { AccountId } from '@hashgraph/sdk';
+import { HederaWalletConnect } from '@hashgraph/hedera-wallet-connect';
 
-interface WalletUser {
+export interface WalletUser {
+  accountId: string;
   address: string;
   network: string;
+  walletType: string;
+  publicKey?: string;
 }
 
 interface WalletContextType {
   isConnected: boolean;
   user: WalletUser | null;
+  accountId: string | null;
   contractService: HederaContractService | null;
-  connectWallet: () => Promise<WalletUser>;
+  deploymentService: WalletContractDeployment | null;
+  connectWallet: (walletType?: string) => Promise<WalletUser>;
   disconnectWallet: () => void;
+  signMessage?: (message: string) => Promise<string>;
+  isConnecting: boolean;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -30,8 +40,11 @@ interface WalletProviderProps {
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [user, setUser] = useState<WalletUser | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
   const [contractService, setContractService] = useState<HederaContractService | null>(null);
+  const [deploymentService, setDeploymentService] = useState<WalletContractDeployment | null>(null);
 
   useEffect(() => {
     loadSavedSession();
@@ -43,6 +56,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       try {
         const session = JSON.parse(savedSession);
         setUser(session.user);
+        setAccountId(session.user?.accountId || null);
         setIsConnected(true);
       } catch (error) {
         console.error('Failed to load saved session:', error);
@@ -56,32 +70,119 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     localStorage.setItem('hedera-certchain-session', JSON.stringify(session));
   };
 
-  const connectWallet = async (): Promise<WalletUser> => {
+  const connectWallet = async (walletType: string = 'metamask'): Promise<WalletUser> => {
+    setIsConnecting(true);
+    
     try {
-      // Use default contract address for connection (will be updated when we have actual deployment)
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
-      const service = new HederaContractService(contractAddress);
+      let connectionResult;
       
-      const connectionResult = await service.connectWallet();
+      switch (walletType) {
+        case 'metamask':
+          connectionResult = await connectMetaMask();
+          break;
+        case 'hashpack':
+          connectionResult = await connectHashPack();
+          break;
+        case 'walletconnect':
+          connectionResult = await connectWalletConnect();
+          break;
+        case 'blade':
+          connectionResult = await connectBlade();
+          break;
+        case 'kabila':
+          connectionResult = await connectKabila();
+          break;
+        default:
+          throw new Error(`Unsupported wallet type: ${walletType}`);
+      }
       
-      setUser(connectionResult);
+      const walletUser: WalletUser = {
+        accountId: connectionResult.address,
+        address: connectionResult.address,
+        network: connectionResult.network,
+        walletType: walletType
+      };
+      
+      // Initialize services
+      const deployment = new WalletContractDeployment();
+      const contractAddress = deployment.getStoredContractAddress() || '0x0000000000000000000000000000000000000000';
+      const contract = new HederaContractService(contractAddress);
+      
+      setUser(walletUser);
+      setAccountId(walletUser.accountId);
       setIsConnected(true);
-      setContractService(service);
+      setContractService(contract);
+      setDeploymentService(deployment);
       
-      saveSession(connectionResult);
+      saveSession(walletUser);
       
-      console.log('Wallet connected:', connectionResult);
-      return connectionResult;
+      console.log('Wallet connected:', walletUser);
+      return walletUser;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       throw error;
+    } finally {
+      setIsConnecting(false);
     }
+  };
+
+  // Individual wallet connection methods
+  const connectMetaMask = async () => {
+    if (!window.ethereum?.isMetaMask) {
+      throw new Error('MetaMask is not installed');
+    }
+    
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const network = await getNetworkInfo();
+    
+    return { address: accounts[0], network };
+  };
+  
+  const connectHashPack = async () => {
+    // HashPack integration would go here
+    throw new Error('HashPack integration not implemented yet');
+  };
+  
+  const connectWalletConnect = async () => {
+    // WalletConnect integration would go here
+    throw new Error('WalletConnect integration not implemented yet');
+  };
+  
+  const connectBlade = async () => {
+    // Blade wallet integration would go here
+    throw new Error('Blade wallet integration not implemented yet');
+  };
+  
+  const connectKabila = async () => {
+    // Kabila wallet integration would go here
+    throw new Error('Kabila wallet integration not implemented yet');
+  };
+  
+  const getNetworkInfo = async () => {
+    if (window.ethereum) {
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainIdNumber = parseInt(chainId, 16);
+      
+      switch (chainIdNumber) {
+        case 296:
+          return 'Hedera Testnet';
+        case 295:
+          return 'Hedera Mainnet';
+        case 297:
+          return 'Hedera Previewnet';
+        default:
+          return `Unknown Network (${chainIdNumber})`;
+      }
+    }
+    return 'Unknown Network';
   };
 
   const disconnectWallet = () => {
     setIsConnected(false);
     setUser(null);
+    setAccountId(null);
     setContractService(null);
+    setDeploymentService(null);
     
     localStorage.removeItem('hedera-certchain-session');
     console.log('Wallet disconnected');
@@ -90,9 +191,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const value: WalletContextType = {
     isConnected,
     user,
+    accountId,
     contractService,
+    deploymentService,
     connectWallet,
-    disconnectWallet
+    disconnectWallet,
+    isConnecting
   };
 
   return (
