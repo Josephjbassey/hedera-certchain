@@ -4,11 +4,15 @@ import { Shield, Menu, X, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import logoImage from '@/assets/hedera-certchain-logo.png';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+interface WalletUser {
+  address: string;
+  network: string;
+}
 
 interface LayoutProps {
   children: React.ReactNode;
-  user?: SupabaseUser | null;
+  user?: WalletUser | null;
   onLogout?: () => void;
 }
 
@@ -70,7 +74,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 <div className="flex items-center space-x-2 ml-4">
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4" />
-                    <span>{user.email}</span>
+                    <span>{user.address.slice(0, 6)}...{user.address.slice(-4)}</span>
                   </div>
                   <Button
                     variant="outline"
@@ -138,7 +142,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                    <div className="flex flex-col space-y-2 pt-2 border-t border-border">
                      <div className="flex items-center space-x-2 text-sm text-muted-foreground px-3 py-2">
                        <User className="h-4 w-4" />
-                       <span>{user.email}</span>
+                       <span>{user.address.slice(0, 6)}...{user.address.slice(-4)}</span>
                      </div>
                      <Button
                        variant="outline"

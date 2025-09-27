@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { HashConnect, HashConnectTypes, MessageTypes } from 'hashconnect';
+import { HederaContractService } from '@/services/hedera-contract';
+
+interface WalletUser {
+  address: string;
+  network: string;
+}
 
 interface WalletContextType {
   isConnected: boolean;
-  accountId: string | null;
-  publicKey: string | null;
-  network: string;
-  connectWallet: () => Promise<void>;
+  user: WalletUser | null;
+  contractService: HederaContractService | null;
+  connectWallet: () => Promise<WalletUser>;
   disconnectWallet: () => void;
-  signMessage: (message: string) => Promise<string>;
-  hashConnect: HashConnect | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -28,57 +30,19 @@ interface WalletProviderProps {
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [publicKey, setPublicKey] = useState<string | null>(null);
-  const [hashConnect, setHashConnect] = useState<HashConnect | null>(null);
-  const [network] = useState('testnet'); // Change to 'mainnet' for production
+  const [user, setUser] = useState<WalletUser | null>(null);
+  const [contractService, setContractService] = useState<HederaContractService | null>(null);
 
   useEffect(() => {
-    initializeHashConnect();
     loadSavedSession();
   }, []);
-
-  const initializeHashConnect = async () => {
-    try {
-      const hc = new HashConnect(true); // true for debug mode
-      
-      const appMetadata: HashConnectTypes.AppMetadata = {
-        name: 'Hedera CertChain',
-        description: 'Decentralized Certificate Verification on Hedera Blockchain',
-        icon: window.location.origin + '/favicon.ico',
-        url: window.location.origin
-      };
-
-      // Initialize HashConnect
-      await hc.init(appMetadata, network as HashConnectTypes.NetworkName);
-      
-      // Set up event listeners
-      hc.pairingEvent.on((data) => {
-        console.log('Pairing event:', data);
-      });
-
-      hc.connectionStatusChangeEvent.on((state) => {
-        console.log('Connection status change:', state);
-        setIsConnected(state === HashConnectTypes.ConnectionState.Paired);
-      });
-
-      hc.acknowledgeMessageEvent.on((data) => {
-        console.log('Message acknowledged:', data);
-      });
-
-      setHashConnect(hc);
-    } catch (error) {
-      console.error('Failed to initialize HashConnect:', error);
-    }
-  };
 
   const loadSavedSession = () => {
     const savedSession = localStorage.getItem('hedera-certchain-session');
     if (savedSession) {
       try {
         const session = JSON.parse(savedSession);
-        setAccountId(session.accountId);
-        setPublicKey(session.publicKey);
+        setUser(session.user);
         setIsConnected(true);
       } catch (error) {
         console.error('Failed to load saved session:', error);
@@ -87,38 +51,27 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
-  const saveSession = (accountId: string, publicKey: string) => {
-    const session = { accountId, publicKey, timestamp: Date.now() };
+  const saveSession = (user: WalletUser) => {
+    const session = { user, timestamp: Date.now() };
     localStorage.setItem('hedera-certchain-session', JSON.stringify(session));
   };
 
-  const connectWallet = async () => {
-    if (!hashConnect) {
-      throw new Error('HashConnect not initialized');
-    }
-
+  const connectWallet = async (): Promise<WalletUser> => {
     try {
-      // Request pairing
-      await hashConnect.connectToLocalWallet();
+      // Use default contract address for connection (will be updated when we have actual deployment)
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+      const service = new HederaContractService(contractAddress);
       
-      // Get pairing data
-      const pairingData = hashConnect.hcData.pairingData[0];
+      const connectionResult = await service.connectWallet();
       
-      if (pairingData?.accountIds && pairingData.accountIds.length > 0) {
-        const connectedAccountId = pairingData.accountIds[0];
-        const connectedPublicKey = pairingData.publicKey || '';
-        
-        setAccountId(connectedAccountId);
-        setPublicKey(connectedPublicKey);
-        setIsConnected(true);
-        
-        saveSession(connectedAccountId, connectedPublicKey);
-        
-        console.log('Wallet connected:', {
-          accountId: connectedAccountId,
-          network
-        });
-      }
+      setUser(connectionResult);
+      setIsConnected(true);
+      setContractService(service);
+      
+      saveSession(connectionResult);
+      
+      console.log('Wallet connected:', connectionResult);
+      return connectionResult;
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       throw error;
@@ -126,50 +79,20 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   const disconnectWallet = () => {
-    if (hashConnect) {
-      hashConnect.disconnect();
-    }
-    
     setIsConnected(false);
-    setAccountId(null);
-    setPublicKey(null);
+    setUser(null);
+    setContractService(null);
     
     localStorage.removeItem('hedera-certchain-session');
     console.log('Wallet disconnected');
   };
 
-  const signMessage = async (message: string): Promise<string> => {
-    if (!hashConnect || !isConnected || !accountId) {
-      throw new Error('Wallet not connected');
-    }
-
-    try {
-      const messageToSign: MessageTypes.Transaction = {
-        topic: hashConnect.hcData.topic || '',
-        byteArray: new TextEncoder().encode(message),
-        metadata: {
-          accountToSign: accountId,
-          returnTransaction: false
-        }
-      };
-
-      const response = await hashConnect.sendTransaction(messageToSign);
-      return response.signedTransaction || '';
-    } catch (error) {
-      console.error('Failed to sign message:', error);
-      throw error;
-    }
-  };
-
   const value: WalletContextType = {
     isConnected,
-    accountId,
-    publicKey,
-    network,
+    user,
+    contractService,
     connectWallet,
-    disconnectWallet,
-    signMessage,
-    hashConnect
+    disconnectWallet
   };
 
   return (

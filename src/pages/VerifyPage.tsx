@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
+import { HederaContractService } from '@/services/hedera-contract';
 
 export const VerifyPage: React.FC = () => {
   const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('file_upload');
@@ -39,22 +39,39 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      const requestBody = {
-        verificationMethod: method,
-        ...params
-      };
+      // Use environment variable for contract address or default
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+      const contractService = new HederaContractService(contractAddress);
+      
+      // Initialize the service
+      await contractService.initialize();
+      
+      let result;
 
-      console.log('Sending verification request:', requestBody);
-
-      const { data, error } = await supabase.functions.invoke('verify-certificate', {
-        body: requestBody
-      });
-
-      if (error) {
-        throw new Error(error.message);
+      if (method === 'transaction_id') {
+        // Verify by token ID (transaction ID)
+        result = await contractService.verifyCertificateById(parseInt(params.transactionId));
+      } else if (method === 'ipfs_cid') {
+        // Verify by IPFS hash
+        result = await contractService.verifyCertificateByHash(params.ipfsCid);
       }
 
-      setVerificationResult(data);
+      if (result && result.isValid) {
+        setVerificationResult({
+          success: true,
+          verified: true,
+          certificate: result.certificate,
+          owner: result.owner,
+          tokenId: result.tokenId,
+          onChain: true
+        });
+      } else {
+        setVerificationResult({
+          success: false,
+          verified: false,
+          error: 'Certificate not found on blockchain or is invalid'
+        });
+      }
     } catch (error) {
       console.error('Verification failed:', error);
       setVerificationResult({
@@ -77,38 +94,50 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      let requestBody: any = {
-        verificationMethod
-      };
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+      const contractService = new HederaContractService(contractAddress);
+      
+      // Initialize the service
+      await contractService.initialize();
+      
+      let result;
 
       if (verificationMethod === 'transaction_id') {
-        requestBody.transactionId = certificateId;
+        result = await contractService.verifyCertificateById(parseInt(certificateId));
       } else if (verificationMethod === 'ipfs_cid') {
-        requestBody.ipfsCid = ipfsCid;
+        result = await contractService.verifyCertificateByHash(ipfsCid);
       } else if (verificationMethod === 'file_upload' && file) {
-        // Convert file to base64 for secure verification
-        const base64 = await new Promise<string>((resolve) => {
+        // For file upload, read the JSON and extract the certificate hash
+        const fileContent = await new Promise<string>((resolve) => {
           const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result.split(',')[1]); // Remove data:application/json;base64, prefix
-          };
-          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsText(file);
         });
-        requestBody.certificateFile = base64;
+        
+        const certificateData = JSON.parse(fileContent);
+        if (certificateData.certificateHash) {
+          result = await contractService.verifyCertificateByHash(certificateData.certificateHash);
+        } else {
+          throw new Error('Invalid certificate file - missing certificate hash');
+        }
       }
 
-      console.log('Sending verification request:', { method: verificationMethod });
-
-      const { data, error } = await supabase.functions.invoke('verify-certificate', {
-        body: requestBody
-      });
-
-      if (error) {
-        throw new Error(error.message);
+      if (result && result.isValid) {
+        setVerificationResult({
+          success: true,
+          verified: true,
+          certificate: result.certificate,
+          owner: result.owner,
+          tokenId: result.tokenId,
+          onChain: true
+        });
+      } else {
+        setVerificationResult({
+          success: false,
+          verified: false,
+          error: 'Certificate not found on blockchain or is invalid'
+        });
       }
-
-      setVerificationResult(data);
     } catch (error) {
       console.error('Verification failed:', error);
       setVerificationResult({
