@@ -1,31 +1,6 @@
 import { ethers } from 'ethers';
 import { CertificateCrypto } from './crypto';
-
-// Hedera EVM Network Configuration
-const HEDERA_NETWORKS = {
-  testnet: {
-    chainId: '0x128', // 296 in hex
-    chainName: 'Hedera Testnet',
-    nativeCurrency: {
-      name: 'HBAR',
-      symbol: 'HBAR',
-      decimals: 18,
-    },
-    rpcUrls: ['https://testnet.hashio.io/api'],
-    blockExplorerUrls: ['https://hashscan.io/testnet'],
-  },
-  mainnet: {
-    chainId: '0x127', // 295 in hex
-    chainName: 'Hedera Mainnet',
-    nativeCurrency: {
-      name: 'HBAR',
-      symbol: 'HBAR',
-      decimals: 18,
-    },
-    rpcUrls: ['https://mainnet.hashio.io/api'],
-    blockExplorerUrls: ['https://hashscan.io/mainnet'],
-  },
-};
+import { HEDERA_NETWORKS, getCurrentNetwork, getNetworkByChainId } from '../config/networks';
 
 // Contract ABI (Generated from Solidity contract)
 const CERTIFICATE_NFT_ABI = [
@@ -172,11 +147,12 @@ export class HederaContractService {
    */
   async switchToHederaNetwork(): Promise<void> {
     const networkConfig = HEDERA_NETWORKS[this.network];
+    const chainIdHex = '0x' + networkConfig.chainId.toString(16);
     
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: networkConfig.chainId }],
+        params: [{ chainId: chainIdHex }],
       });
     } catch (switchError: any) {
       // Network not added, add it
@@ -184,7 +160,13 @@ export class HederaContractService {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
-            params: [networkConfig],
+            params: [{
+              chainId: chainIdHex,
+              chainName: networkConfig.name,
+              nativeCurrency: networkConfig.nativeCurrency,
+              rpcUrls: networkConfig.rpcUrls,
+              blockExplorerUrls: networkConfig.blockExplorerUrls,
+            }],
           });
         } catch (addError) {
           throw new Error('Failed to add Hedera network to wallet');
