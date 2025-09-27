@@ -21,10 +21,10 @@ const hederaClient = Client.forName(hederaNetwork);
 // Adapted from walletconnect dapp example:
 // https://github.com/hashgraph/hedera-wallet-connect/blob/main/src/examples/typescript/dapp/main.ts#L87C1-L101C4
 const metadata: SignClientTypes.Metadata = {
-  name: "Hedera CRA Template",
-  description: "Hedera CRA Template",
+  name: "Hedera CertChain",
+  description: "Blockchain-based certificate verification system on Hedera Hashgraph",
   url: window.location.origin,
-  icons: [window.location.origin + "/logo192.png"],
+  icons: [window.location.origin + "/favicon.ico"],
 }
 const dappConnector = new DAppConnector(
   metadata,
@@ -39,16 +39,24 @@ const dappConnector = new DAppConnector(
 let walletConnectInitPromise: Promise<void> | undefined = undefined;
 const initializeWalletConnect = async () => {
   if (walletConnectInitPromise === undefined) {
-    walletConnectInitPromise = dappConnector.init();
+    walletConnectInitPromise = dappConnector.init().catch(error => {
+      console.error('WalletConnect initialization failed:', error);
+      walletConnectInitPromise = undefined; // Reset for retry
+      throw error;
+    });
   }
   await walletConnectInitPromise;
 };
 
 export const openWalletConnectModal = async () => {
-  await initializeWalletConnect();
-  await dappConnector.openModal().then((x) => {
-    refreshEvent.emit("sync");
-  });
+  try {
+    await initializeWalletConnect();
+    await dappConnector.openModal().then((x) => {
+      refreshEvent.emit("sync");
+    });
+  } catch (error) {
+    console.error('Failed to open WalletConnect modal:', error);
+  }
 };
 
 class WalletConnectWallet implements WalletInterface {
@@ -154,6 +162,8 @@ export const WalletConnectClient = () => {
 
     initializeWalletConnect().then(() => {
       syncWithWalletConnectContext();
+    }).catch((error) => {
+      console.error('WalletConnect initialization failed:', error);
     });
 
     return () => {
