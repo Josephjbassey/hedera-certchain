@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@hashgraph/hedera-wallet-connect": "^1.5.1",
-    "@hashgraph/sdk": "^2.30.0",
     "@hookform/resolvers": "^3.10.0",
     "@openzeppelin/contracts": "^4.9.3",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -59,7 +58,10 @@
     "@tanstack/react-query": "^5.83.0",
     "@types/crypto-js": "^4.2.2",
     "@walletconnect/modal": "^2.7.0",
+    "@walletconnect/sign-client": "^2.21.9",
     "@walletconnect/types": "^2.21.9",
+    "@walletconnect/utils": "^2.21.9",
+    "@walletconnect/web3wallet": "^1.16.1",
     "axios": "^0.27.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -88,7 +90,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@hashgraph/sdk": "^2.30.0",
+    "@hashgraph/sdk": "^2.73.2",
     "@tailwindcss/typography": "^0.5.16",
     "@types/chai": "^4.3.20",
     "@types/mocha": "^10.0.10",
