@@ -269,7 +269,7 @@ export const LandingPage: React.FC = () => {
                 asChild 
                 className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90"
               >
-                <a href="/auth">
+                <a href="/issue">
                   Start Issuing Certificates
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
