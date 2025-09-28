@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Dialog, 
@@ -9,8 +9,6 @@ import {
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Wallet, ExternalLink, Loader2 } from 'lucide-react';
-import { connectToMetamask } from '../services/wallets/metamask/metamaskClient';
-import { openWalletConnectModal } from '../services/wallets/walletconnect/walletConnectClient';
 
 export interface WalletConnectPopupProps {
   isOpen: boolean;
@@ -29,32 +27,25 @@ interface WalletOption {
 
 const WALLET_OPTIONS: WalletOption[] = [
   {
-    id: 'metamask',
-    name: 'MetaMask',
-    icon: '🦊',
-    description: 'Most popular Ethereum wallet',
-    installUrl: 'https://metamask.io/download/'
-  },
-  {
     id: 'hashpack',
     name: 'HashPack',
     icon: '🔷',
-    description: 'Native Hedera wallet',
+    description: 'Native Hedera wallet (Recommended)',
     installUrl: 'https://www.hashpack.app/download'
   },
   {
     id: 'blade',
     name: 'Blade Wallet',
     icon: '⚔️',
-    description: 'Hedera-focused wallet',
+    description: 'Hedera-focused wallet with advanced features',
     installUrl: 'https://bladewallet.io/'
   },
   {
-    id: 'kabila',
-    name: 'Kabila Wallet',
-    icon: '🏛️',
-    description: 'Professional Hedera wallet',
-    installUrl: 'https://kabila.app/'
+    id: 'metamask',
+    name: 'MetaMask',
+    icon: '🦊',
+    description: 'Popular wallet with Hedera EVM support',
+    installUrl: 'https://metamask.io/download/'
   },
   {
     id: 'walletconnect',
@@ -100,20 +91,9 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
   const getWalletAvailability = (walletId: string): boolean => {
     if (typeof window === 'undefined') return false;
     
-    // Debug logging to see what's available
-    console.log('Checking wallet availability for:', walletId);
-    console.log('Window object keys:', Object.keys(window).filter(key => 
-      key.toLowerCase().includes('hashpack') || 
-      key.toLowerCase().includes('blade') || 
-      key.toLowerCase().includes('kabila') ||
-      key.toLowerCase().includes('ethereum')
-    ));
-    
     switch (walletId) {
       case 'metamask':
-        const hasMetaMask = !!(window as any).ethereum?.isMetaMask;
-        console.log('MetaMask detected:', hasMetaMask);
-        return hasMetaMask;
+        return !!(window as any).ethereum?.isMetaMask;
         
       case 'hashpack':
         // HashPack detection - check multiple possible injection points
@@ -121,34 +101,18 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
           (window as any).hashpack,
           (window as any).HashPack,
           (window as any).ethereum?.isHashPack,
-          (window as any).hederaWallets?.hashpack,
-          // HashPack specifically injects into window.hashpack
-          typeof (window as any).hashpack !== 'undefined' && (window as any).hashpack
+          (window as any).hederaWallets?.hashpack
         ];
-        
-        const hasHashPack = hashpackProviders.some(provider => !!provider);
-        console.log('HashPack detection results:', {
-          hashpack: (window as any).hashpack,
-          HashPack: (window as any).HashPack,
-          ethereumHashPack: (window as any).ethereum?.isHashPack,
-          hederaWallets: (window as any).hederaWallets,
-          final: hasHashPack
-        });
-        
-        return hasHashPack;
+        return hashpackProviders.some(provider => !!provider);
         
       case 'blade':
-        const hasBlade = !!(window as any).blade || !!(window as any).Blade;
-        console.log('Blade detected:', hasBlade);
-        return hasBlade;
+        return !!(window as any).blade || !!(window as any).Blade;
         
-      case 'kabila':
-        const hasKabila = !!(window as any).kabila || !!(window as any).Kabila;
-        console.log('Kabila detected:', hasKabila);
-        return hasKabila;
+      case 'walletconnect':
+        return true; // WalletConnect doesn't require installation check
         
       default:
-        return true; // WalletConnect doesn't require installation check
+        return false;
     }
   };
 
@@ -156,6 +120,8 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({
     setSelectedWallet(walletId);
     
     try {
+      // For now, just call the onConnect function passed as prop
+      // Each wallet type will be handled by the parent component
       await onConnect(walletId);
     } catch (error) {
       console.error('Wallet connection failed:', error);
