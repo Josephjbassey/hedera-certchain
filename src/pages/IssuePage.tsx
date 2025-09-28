@@ -71,16 +71,8 @@ export const IssuePage: React.FC = () => {
       }
       const fileBase64 = btoa(binary);
 
-      // Get auth token from Supabase
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.log('No user session found - redirecting to auth');
-        throw new Error('Please log in to issue certificates');
-      }
-
-      console.log('Starting certificate issuance for user:', session.user.id);
+      // Authentication removed - anyone can issue certificates now
+      console.log('Starting certificate issuance...');
 
       // TODO: Replace with direct Hedera contract interaction
       // Removed Supabase functions - implement direct blockchain interaction here

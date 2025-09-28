@@ -3,19 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, Settings } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-
 interface SystemStatus {
-  database: 'connected' | 'error' | 'checking';
-  authentication: 'working' | 'error' | 'checking';
   edgeFunctions: 'deployed' | 'error' | 'checking';
   secrets: 'configured' | 'missing' | 'checking';
 }
 
 export const SystemStatus: React.FC = () => {
   const [status, setStatus] = useState<SystemStatus>({
-    database: 'checking',
-    authentication: 'checking',
     edgeFunctions: 'checking',
     secrets: 'checking'
   });
@@ -25,27 +19,9 @@ export const SystemStatus: React.FC = () => {
   }, []);
 
   const checkSystemStatus = async () => {
-    // Check database connection
-    try {
-      const { error } = await supabase.from('certificates').select('count').limit(1);
-      setStatus(prev => ({ 
-        ...prev, 
-        database: error ? 'error' : 'connected' 
-      }));
-    } catch (error) {
-      setStatus(prev => ({ ...prev, database: 'error' }));
-    }
+    // Database connection removed - using direct Hedera blockchain storage
 
-    // Check authentication
-    try {
-      const { data } = await supabase.auth.getSession();
-      setStatus(prev => ({ 
-        ...prev, 
-        authentication: 'working'
-      }));
-    } catch (error) {
-      setStatus(prev => ({ ...prev, authentication: 'error' }));
-    }
+    // Authentication removed - no longer needed
 
     // Edge functions have been removed - mark as error since they're no longer deployed
     setStatus(prev => ({ 
@@ -78,10 +54,8 @@ export const SystemStatus: React.FC = () => {
     if (state === 'checking') return 'Checking...';
     
     switch (component) {
-      case 'database':
-        return state === 'connected' ? 'Connected' : 'Connection Failed';
-      case 'authentication':
-        return state === 'working' ? 'Working' : 'Error';
+
+
       case 'edgeFunctions':
         return state === 'deployed' ? 'Deployed' : 'Not Available';
       case 'secrets':
@@ -92,7 +66,7 @@ export const SystemStatus: React.FC = () => {
   };
 
   const allSystemsReady = Object.values(status).every(s => 
-    ['connected', 'working', 'deployed', 'configured'].includes(s)
+    ['connected', 'deployed', 'configured'].includes(s)
   );
 
   return (
@@ -109,25 +83,6 @@ export const SystemStatus: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center space-x-2">
-              {getStatusIcon(status.database)}
-              <span className="font-medium">Database</span>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {getStatusText('database', status.database)}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center space-x-2">
-              {getStatusIcon(status.authentication)}
-              <span className="font-medium">Authentication</span>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {getStatusText('authentication', status.authentication)}
-            </span>
-          </div>
 
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center space-x-2">
@@ -168,9 +123,7 @@ export const SystemStatus: React.FC = () => {
               {status.edgeFunctions !== 'deployed' && (
                 <li>• Edge functions need to be deployed</li>
               )}
-              {status.database !== 'connected' && (
-                <li>• Database connection issue detected</li>
-              )}
+
             </ul>
           </div>
         )}

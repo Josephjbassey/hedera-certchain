@@ -193,9 +193,9 @@ export const SetupGuide: React.FC = () => {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild variant="default">
-                <a href="/auth">
+                <a href="/issue">
                   <Key className="mr-2 h-4 w-4" />
-                  Sign In & Start
+                  Start Issuing Certificates
                 </a>
               </Button>
               <Button asChild variant="outline">
