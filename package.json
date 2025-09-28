@@ -20,7 +20,6 @@
     "deploy:mainnet": "hardhat run scripts/deploy.ts --network hedera-mainnet"
   },
   "dependencies": {
-    "@hashgraph/sdk": "^2.30.0",
     "@hookform/resolvers": "^3.10.0",
     "@pinata/sdk": "^2.1.0",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -52,11 +51,14 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^5.83.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "ethers": "^6.15.0",
     "framer-motion": "^12.23.21",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
@@ -79,7 +81,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@hashgraph/sdk": "^2.30.0",
+    "@hashgraph/sdk": "^2.73.2",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-waffle": "^2.0.6",
     "@tailwindcss/typography": "^0.5.16",

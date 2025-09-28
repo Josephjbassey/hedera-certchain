@@ -245,7 +245,7 @@ export const CertificateVerifier: React.FC<CertificateVerifierProps> = ({
       let metadata: CertificateMetadata | undefined;
       try {
         if (cert.ipfsCID) {
-          metadata = await ipfsService.retrieveMetadata(cert.ipfsCID);
+          metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
           status.metadataLoaded = true;
         }
       } catch (error) {

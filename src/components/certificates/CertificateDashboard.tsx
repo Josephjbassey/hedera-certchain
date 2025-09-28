@@ -2,8 +2,26 @@
  * Certificate Dashboard Component
  * 
  * Provides comprehensive certificate management dashboard including:
- * - Overview statistics and analytics
- * - Issued and received certificates display
+ * - Overview statistics and anal          try {
+            metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
+          } catch (error) {
+            console.error('Failed to load metadata for received certificate:', error);
+            metadata = null;
+          }
+          receivedCerts.push({
+            tokenId: cert.tokenId,
+            recipientAddress: cert.recipient,
+            issuer: cert.issuer,
+                                   {getCourseName(cert.metadata) || `Certificate #${cert.tokenId}`}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {getInstitutionName(cert.metadata)} certificateHash: cert.certificateHash,
+            issueTimestamp: cert.timestamp,
+            ipfsCID: cert.ipfsCID,
+            isRevoked: cert.isRevoked,
+            metadata,
+            type: 'received' as const
+          });Issued and received certificates display
  * - Search and filtering functionality
  * - Certificate management actions (revoke, view, download)
  * - Real-time updates and notifications
@@ -44,7 +62,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
-import { blockchainService, type CertificateInfo } from '@/services/blockchain/contractService';
+import { blockchainService } from '@/services/blockchain/contractService';
 import { ipfsService, type CertificateMetadata } from '@/services/ipfs/ipfsService';
 
 // Types
@@ -117,15 +135,21 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
         for (const cert of issuedResult.certificates) {
           let metadata: CertificateMetadata | undefined;
           try {
-            metadata = await ipfsService.retrieveMetadata(cert.ipfsCID);
+            metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
           } catch (error) {
-            console.warn('Failed to load metadata for certificate:', cert.tokenId);
+            console.error('Failed to load metadata for issued certificate:', error);
+            metadata = null;
           }
-
           issuedCerts.push({
-            ...cert,
+            tokenId: cert.tokenId,
+            recipientAddress: cert.recipient,
+            issuer: cert.issuer,
+            certificateHash: cert.certificateHash,
+            issueTimestamp: cert.timestamp,
+            ipfsCID: cert.ipfsCID,
+            isRevoked: cert.isRevoked,
             metadata,
-            type: 'issued'
+            type: 'issued' as const
           });
         }
       }
@@ -138,15 +162,21 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
         for (const cert of receivedResult.certificates) {
           let metadata: CertificateMetadata | undefined;
           try {
-            metadata = await ipfsService.retrieveMetadata(cert.ipfsCID);
+            metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
           } catch (error) {
             console.warn('Failed to load metadata for certificate:', cert.tokenId);
           }
 
           receivedCerts.push({
-            ...cert,
+            tokenId: cert.tokenId,
+            recipientAddress: cert.recipient,
+            issuer: cert.issuer,
+            certificateHash: cert.certificateHash,
+            issueTimestamp: cert.timestamp,
+            ipfsCID: cert.ipfsCID,
+            isRevoked: cert.isRevoked,
             metadata,
-            type: 'received'
+            type: 'received' as const
           });
         }
       }
@@ -208,9 +238,9 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(cert => 
-        cert.metadata?.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cert.metadata?.recipientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cert.metadata?.institutionName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getCourseName(cert.metadata)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getRecipientName(cert.metadata)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getInstitutionName(cert.metadata)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         cert.tokenId.toString().includes(searchQuery)
       );
     }
@@ -244,8 +274,8 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
 
       switch (sortBy) {
         case 'name':
-          aValue = a.metadata?.courseName || a.tokenId.toString();
-          bValue = b.metadata?.courseName || b.tokenId.toString();
+          aValue = getCourseName(a.metadata) || a.tokenId.toString();
+          bValue = getCourseName(b.metadata) || b.tokenId.toString();
           break;
         case 'status':
           aValue = getCertificateStatus(a);
@@ -546,7 +576,7 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
                       
                       <TableCell>
                         <div className="text-sm">
-                          {cert.metadata?.recipientName || 
+                          {getRecipientName(cert.metadata) || 
                             `${cert.recipientAddress.slice(0, 6)}...${cert.recipientAddress.slice(-4)}`}
                         </div>
                       </TableCell>
