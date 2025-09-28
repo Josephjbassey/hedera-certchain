@@ -29,7 +29,7 @@ export const SystemStatus: React.FC = () => {
       edgeFunctions: 'error' 
     }));
 
-    // Secrets check (we can't actually check if secrets exist without calling the function)
+    // Environment variables check (assuming configured - would need actual validation in production)
     setStatus(prev => ({ ...prev, secrets: 'configured' }));
   };
 
@@ -118,10 +118,10 @@ export const SystemStatus: React.FC = () => {
             <h4 className="font-medium text-yellow-800 mb-2">Setup Required</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
               {status.secrets !== 'configured' && (
-                <li>• Add your Hedera Account ID, Private Key, and Pinata API keys in Supabase secrets</li>
+                <li>• Configure your environment variables (HEDERA_ACCOUNT_ID, HEDERA_PRIVATE_KEY, PINATA keys)</li>
               )}
               {status.edgeFunctions !== 'deployed' && (
-                <li>• Edge functions need to be deployed</li>
+                <li>• Direct blockchain integration is not yet implemented</li>
               )}
 
             </ul>

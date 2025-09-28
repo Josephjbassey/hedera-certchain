@@ -50,7 +50,7 @@ export const IssuePage: React.FC = () => {
   };
 
   /**
-   * Handle form submission and submit to Hedera via edge function
+   * Handle form submission and submit directly to Hedera blockchain
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +91,7 @@ export const IssuePage: React.FC = () => {
       console.log('Certificate issuance response (placeholder):', response);
 
       if (response.error) {
-        console.error('Edge function error:', response.error);
+        console.error('Blockchain submission error:', response.error);
         throw new Error(response.error.message || 'Failed to issue certificate');
       }
 

@@ -84,23 +84,23 @@ export const SetupGuide: React.FC = () => {
       )
     },
     {
-      id: 'supabase-secrets',
-      title: 'Configure Supabase Secrets',
-      description: 'Add your API keys securely to the backend',
+      id: 'environment-config',
+      title: 'Configure Environment Variables',
+      description: 'Set up your API keys in the application environment',
       icon: Database,
       badge: 'Critical',
       badgeVariant: 'destructive' as const,
       content: (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Add your credentials to Supabase Edge Function secrets:
+            Add your credentials to your .env file or hosting platform configuration:
           </p>
           <div className="space-y-3">
             {[
-              { name: 'HEDERA_ACCOUNT_ID', example: '0.0.123456', description: 'Your testnet account ID' },
-              { name: 'HEDERA_PRIVATE_KEY', example: 'YOUR_PRIVATE_KEY_HERE', description: 'Your ECDSA private key' },
-              { name: 'PINATA_API_KEY', example: 'YOUR_PINATA_API_KEY', description: 'Pinata API key' },
-              { name: 'PINATA_SECRET_API_KEY', example: 'YOUR_PINATA_SECRET', description: 'Pinata secret key' }
+              { name: 'VITE_HEDERA_ACCOUNT_ID', example: '0.0.123456', description: 'Your testnet account ID' },
+              { name: 'VITE_HEDERA_PRIVATE_KEY', example: 'YOUR_PRIVATE_KEY_HERE', description: 'Your ECDSA private key' },
+              { name: 'VITE_PINATA_API_KEY', example: 'YOUR_PINATA_API_KEY', description: 'Pinata API key' },
+              { name: 'VITE_PINATA_SECRET_API_KEY', example: 'YOUR_PINATA_SECRET', description: 'Pinata secret key' }
             ].map((secret) => (
               <div key={secret.name} className="border rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -121,7 +121,7 @@ export const SetupGuide: React.FC = () => {
           </div>
           <Alert>
             <AlertDescription>
-              Add these environment variables to your .env file or hosting platform configuration.
+              Create a .env file in your project root with these variables. Use VITE_ prefix for frontend access.
             </AlertDescription>
           </Alert>
         </div>
