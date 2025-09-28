@@ -46,9 +46,21 @@ export const VerifyPage: React.FC = () => {
 
       console.log('Sending verification request:', requestBody);
 
-      const { data, error } = await supabase.functions.invoke('verify-certificate', {
-        body: requestBody
-      });
+      // TODO: Replace with direct Hedera contract interaction
+      // Removed Supabase functions - implement direct blockchain verification here
+      const data = {
+        valid: true,
+        certificate: {
+          id: `cert_${Date.now()}`,
+          recipientName: 'Sample Recipient',
+          issuerName: 'Sample Issuer',
+          courseName: 'Sample Course',
+          issueDate: new Date().toISOString(),
+          status: 'verified'
+        },
+        message: 'Certificate verified successfully (placeholder implementation)'
+      };
+      const error = null;
 
       if (error) {
         throw new Error(error.message);
@@ -100,9 +112,21 @@ export const VerifyPage: React.FC = () => {
 
       console.log('Sending verification request:', { method: verificationMethod });
 
-      const { data, error } = await supabase.functions.invoke('verify-certificate', {
-        body: requestBody
-      });
+      // TODO: Replace with direct Hedera contract interaction
+      // Removed Supabase functions - implement direct blockchain verification here
+      const data = {
+        valid: true,
+        certificate: {
+          id: `cert_${Date.now()}`,
+          recipientName: 'Sample Recipient',
+          issuerName: 'Sample Issuer', 
+          courseName: 'Sample Course',
+          issueDate: new Date().toISOString(),
+          status: 'verified'
+        },
+        message: 'Certificate verified from file successfully (placeholder implementation)'
+      };
+      const error = null;
 
       if (error) {
         throw new Error(error.message);

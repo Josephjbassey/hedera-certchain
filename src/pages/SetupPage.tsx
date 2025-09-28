@@ -121,7 +121,7 @@ export const SetupGuide: React.FC = () => {
           </div>
           <Alert>
             <AlertDescription>
-              Visit the Supabase Dashboard → Project Settings → Edge Functions → Manage secrets to add these values.
+              Add these environment variables to your .env file or hosting platform configuration.
             </AlertDescription>
           </Alert>
         </div>
@@ -242,13 +242,13 @@ export const SetupGuide: React.FC = () => {
                 <span>Pinata API Docs</span>
               </a>
               <a 
-                href="https://supabase.com/docs/guides/functions/secrets" 
+                href="https://docs.hedera.com/" 
                 className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <ExternalLink className="h-4 w-4" />
-                <span>Supabase Secrets Guide</span>
+                <span>Hedera Documentation</span>
               </a>
               <a 
                 href="https://hashscan.io/testnet" 

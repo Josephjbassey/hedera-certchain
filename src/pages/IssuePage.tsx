@@ -82,22 +82,21 @@ export const IssuePage: React.FC = () => {
 
       console.log('Starting certificate issuance for user:', session.user.id);
 
-      // Submit to edge function
-      const response = await supabase.functions.invoke('issue-certificate', {
-        body: {
-          recipientName: formData.recipientName,
-          recipientEmail: formData.recipientEmail,
-          issuerName: formData.issuer,
-          issuerOrganization: formData.issuer,
-          courseName: formData.courseName,
-          completionDate: formData.issueDate, // Using issue date as completion date for now
-          certificateFile: fileBase64,
-          fileName: file.name,
-          fileType: file.type
-        }
-      });
+      // TODO: Replace with direct Hedera contract interaction
+      // Removed Supabase functions - implement direct blockchain interaction here
+      const response = {
+        data: {
+          success: true,
+          certificateId: `cert_${Date.now()}`,
+          transactionId: '0x' + Math.random().toString(16).substr(2, 8),
+          transactionHash: '0x' + Math.random().toString(16).substr(2, 8),
+          verificationUrl: `https://hedera-certchain.com/verify?id=cert_${Date.now()}`,
+          message: 'Certificate issued successfully (placeholder implementation)'
+        },
+        error: null
+      };
 
-      console.log('Edge function response:', response);
+      console.log('Certificate issuance response (placeholder):', response);
 
       if (response.error) {
         console.error('Edge function error:', response.error);
@@ -108,8 +107,8 @@ export const IssuePage: React.FC = () => {
       console.log('Certificate issuance result:', result);
       
       if (!result.success) {
-        console.error('Certificate issuance failed:', result.error);
-        throw new Error(result.error || 'Failed to issue certificate');
+        console.error('Certificate issuance failed:', result.message);
+        throw new Error(result.message || 'Failed to issue certificate');
       }
 
       setTransactionId(result.transactionId);

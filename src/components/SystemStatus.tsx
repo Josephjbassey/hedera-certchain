@@ -47,24 +47,11 @@ export const SystemStatus: React.FC = () => {
       setStatus(prev => ({ ...prev, authentication: 'error' }));
     }
 
-    // Check edge functions by calling verification (public)
-    try {
-      const response = await fetch(`https://rcrtloxuqhnjlusisjgf.supabase.co/functions/v1/verify-certificate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          verificationMethod: 'transaction_id',
-          transactionId: 'test'
-        })
-      });
-      
-      setStatus(prev => ({ 
-        ...prev, 
-        edgeFunctions: response.ok ? 'deployed' : 'error' 
-      }));
-    } catch (error) {
-      setStatus(prev => ({ ...prev, edgeFunctions: 'error' }));
-    }
+    // Edge functions have been removed - mark as error since they're no longer deployed
+    setStatus(prev => ({ 
+      ...prev, 
+      edgeFunctions: 'error' 
+    }));
 
     // Secrets check (we can't actually check if secrets exist without calling the function)
     setStatus(prev => ({ ...prev, secrets: 'configured' }));
