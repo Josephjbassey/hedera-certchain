@@ -43,8 +43,21 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { blockchainService, type VerificationResult } from '@/services/blockchain/contractService';
+import { blockchainService } from '@/services/blockchain/contractService';
 import { ipfsService, type CertificateMetadata } from '@/services/ipfs/ipfsService';
+
+// Helper functions to extract data from metadata attributes
+const getMetadataValue = (metadata: CertificateMetadata | undefined | null, traitType: string): string => {
+  if (!metadata?.attributes) return '';
+  const attribute = metadata.attributes.find(attr => attr.trait_type === traitType);
+  return attribute?.value || '';
+};
+
+const getCourseName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Course');
+const getRecipientName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Recipient');
+const getInstitutionName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Institution');
+const getCertificateType = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Type');
+const getGrade = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Grade');
 
 // Types
 export interface CertificateData {
@@ -190,7 +203,7 @@ export const CertificateVerifier: React.FC<CertificateVerifierProps> = ({
       }
 
       // Verify certificate on blockchain
-      let verificationResult: VerificationResult;
+      let verificationResult: any;
       
       if (tokenId !== null) {
         verificationResult = await blockchainService.verifyCertificateByTokenId(tokenId);
@@ -567,7 +580,7 @@ export const CertificateVerifier: React.FC<CertificateVerifierProps> = ({
                                 <Award className="h-4 w-4" />
                                 <span>Course Name</span>
                               </Label>
-                              <p className="font-medium">{certificateData.metadata.courseName}</p>
+                              <p className="font-medium">{getCourseName(certificateData.metadata)}</p>
                             </div>
 
                             <div className="space-y-2">
@@ -575,7 +588,7 @@ export const CertificateVerifier: React.FC<CertificateVerifierProps> = ({
                                 <User className="h-4 w-4" />
                                 <span>Recipient</span>
                               </Label>
-                              <p className="font-medium">{certificateData.metadata.recipientName}</p>
+                              <p className="font-medium">{getRecipientName(certificateData.metadata)}</p>
                             </div>
 
                             <div className="space-y-2">
@@ -583,18 +596,18 @@ export const CertificateVerifier: React.FC<CertificateVerifierProps> = ({
                                 <Building className="h-4 w-4" />
                                 <span>Institution</span>
                               </Label>
-                              <p className="font-medium">{certificateData.metadata.institutionName}</p>
+                              <p className="font-medium">{getInstitutionName(certificateData.metadata)}</p>
                             </div>
 
                             <div className="space-y-2">
                               <Label>Certificate Type</Label>
-                              <Badge variant="outline">{certificateData.metadata.certificateType}</Badge>
+                              <Badge variant="outline">{getCertificateType(certificateData.metadata)}</Badge>
                             </div>
 
-                            {certificateData.metadata.grade && (
+                            {getGrade(certificateData.metadata) && (
                               <div className="space-y-2">
                                 <Label>Grade/Score</Label>
-                                <Badge variant="secondary">{certificateData.metadata.grade}</Badge>
+                                <Badge variant="secondary">{getGrade(certificateData.metadata)}</Badge>
                               </div>
                             )}
                           </>

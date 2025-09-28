@@ -1,27 +1,11 @@
 /**
- * Certificate Dashboard Component
+ * CertificateDashboard Component
  * 
- * Provides comprehensive certificate management dashboard including:
- * - Overview statistics and anal          try {
-            metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
-          } catch (error) {
-            console.error('Failed to load metadata for received certificate:', error);
-            metadata = null;
-          }
-          receivedCerts.push({
-            tokenId: cert.tokenId,
-            recipientAddress: cert.recipient,
-            issuer: cert.issuer,
-                                   {getCourseName(cert.metadata) || `Certificate #${cert.tokenId}`}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {getInstitutionName(cert.metadata)} certificateHash: cert.certificateHash,
-            issueTimestamp: cert.timestamp,
-            ipfsCID: cert.ipfsCID,
-            isRevoked: cert.isRevoked,
-            metadata,
-            type: 'received' as const
-          });Issued and received certificates display
+ * A comprehensive dashboard for managing certificates on the Hedera blockchain.
+ * 
+ * Features:
+ * - Statistics overview with visual cards
+ * - Issued and received certificates display
  * - Search and filtering functionality
  * - Certificate management actions (revoke, view, download)
  * - Real-time updates and notifications
@@ -61,9 +45,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
+
+import { useWallet } from '@/contexts/WalletContext';
 import { blockchainService } from '@/services/blockchain/contractService';
 import { ipfsService, type CertificateMetadata } from '@/services/ipfs/ipfsService';
+
+// Helper functions to extract data from metadata attributes
+const getMetadataValue = (metadata: CertificateMetadata | undefined | null, traitType: string): string => {
+  if (!metadata?.attributes) return '';
+  const attribute = metadata.attributes.find(attr => attr.trait_type === traitType);
+  return attribute?.value || '';
+};
+
+const getCourseName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Course');
+const getRecipientName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Recipient');
+const getInstitutionName = (metadata?: CertificateMetadata | null) => getMetadataValue(metadata, 'Institution');
 
 // Types
 export interface DashboardCertificate {
@@ -138,7 +137,7 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
             metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
           } catch (error) {
             console.error('Failed to load metadata for issued certificate:', error);
-            metadata = null;
+            metadata = undefined;
           }
           issuedCerts.push({
             tokenId: cert.tokenId,
@@ -165,6 +164,7 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
             metadata = await ipfsService.retrieveContent(cert.ipfsCID) as CertificateMetadata;
           } catch (error) {
             console.warn('Failed to load metadata for certificate:', cert.tokenId);
+            metadata = undefined;
           }
 
           receivedCerts.push({
@@ -566,10 +566,10 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
                       <TableCell>
                         <div>
                           <div className="font-medium">
-                            {cert.metadata?.courseName || `Certificate #${cert.tokenId}`}
+                            {getCourseName(cert.metadata) || `Certificate #${cert.tokenId}`}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {cert.metadata?.institutionName}
+                            {getInstitutionName(cert.metadata)}
                           </div>
                         </div>
                       </TableCell>
@@ -610,28 +610,21 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewCertificate(cert.tokenId)}>
                               <Eye className="h-4 w-4 mr-2" />
-                              View Details
+                              View
                             </DropdownMenuItem>
-                            
                             <DropdownMenuItem onClick={() => handleDownloadCertificate(cert)}>
                               <Download className="h-4 w-4 mr-2" />
                               Download
                             </DropdownMenuItem>
-                            
-                            {cert.type === 'issued' && status === 'valid' && (
+                            {cert.type === 'issued' && !cert.isRevoked && (
                               <DropdownMenuItem 
                                 onClick={() => handleRevokeCertificate(cert.tokenId)}
-                                className="text-red-600"
+                                className="text-destructive"
                               >
-                                <Archive className="h-4 w-4 mr-2" />
+                                <AlertTriangle className="h-4 w-4 mr-2" />
                                 Revoke
                               </DropdownMenuItem>
                             )}
-                            
-                            <DropdownMenuItem onClick={() => window.open(`https://hashscan.io/testnet/token/${cert.tokenId}`, '_blank')}>
-                              <ExternalLink className="h-4 w-4 mr-2" />
-                              View on Explorer
-                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -646,3 +639,5 @@ export const CertificateDashboard: React.FC<CertificateDashboardProps> = ({
     </div>
   );
 };
+
+export default CertificateDashboard;
