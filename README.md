@@ -1,78 +1,22 @@
-# Hedera CertChain 🏅
+# Welcome to your Lovable project
 
-A blockchain-based certificate verification system built on the Hedera Hashgraph network. This application enables secure issuance, storage, and verification of digital certificates using NFTs and IPFS for immutable proof of achievement.
+## Project info
 
-## 🏗️ Architecture Overview
+**URL**: https://lovable.dev/projects/65d1d4ed-b874-4cfa-b01b-b7a8d899c0d6
 
-### Project Structure (Betty Coding Style)
+## How can I edit this code?
 
-```
-src/
-├── core/                          # Core application modules
-│   ├── config/                    # Application configuration
-│   │   └── app.config.ts         # Main config with network settings
-│   ├── types/                     # TypeScript type definitions
-│   │   └── index.ts              # All application types
-│   ├── constants/                 # Application constants
-│   │   └── index.ts              # Error codes, limits, endpoints
-│   └── index.ts                  # Core module exports
-├── features/                      # Feature-based modules
-│   ├── certificates/             # Certificate management
-│   │   ├── services/             # Certificate business logic
-│   │   │   ├── crypto.service.ts # Cryptographic operations
-│   │   │   └── ipfs.service.ts   # IPFS storage operations
-│   │   ├── components/           # Certificate UI components
-│   │   └── pages/                # Certificate page components
-│   └── wallets/                  # Wallet integration
-│       ├── services/             # Wallet business logic
-│       │   └── wallet.interface.ts # Standard wallet interface
-│       ├── contexts/             # Wallet state management
-│       └── components/           # Wallet UI components
-├── shared/                       # Shared utilities and components
-│   ├── components/               # Reusable UI components
-│   ├── utils/                    # Utility functions
-│   │   ├── logger.util.ts       # Application logging
-│   │   ├── validation.util.ts    # Form validation
-│   │   └── error-handler.util.ts # Error handling
-│   └── index.ts                 # Shared module exports
-└── App.tsx                      # Main application component
-```
+There are several ways of editing your application.
 
-## 🚀 Features
+**Use Lovable**
 
-### Certificate Management
-- **Issue Certificates**: Create blockchain-based certificates with IPFS metadata
-- **Verify Certificates**: Validate certificate authenticity using blockchain data
-- **NFT Integration**: Certificates are minted as NFTs for ownership and transfer
-- **Secure Storage**: Files stored on IPFS with Pinata pinning service
+Simply visit the [Lovable Project](https://lovable.dev/projects/65d1d4ed-b874-4cfa-b01b-b7a8d899c0d6) and start prompting.
 
-### Multi-Wallet Support
-- **MetaMask**: Browser extension wallet for Ethereum and Hedera
-- **HashPack**: Native Hedera wallet with advanced features
-- **Blade Wallet**: Hedera-focused wallet integration
-- **Kabila Wallet**: Multi-chain wallet support
-- **WalletConnect**: Mobile wallet connectivity via QR codes
+Changes made via Lovable will be committed automatically to this repo.
 
-## 🛠️ Technical Stack
+**Use your preferred IDE**
 
-- **React 18 + TypeScript**: Modern frontend framework
-- **Hedera Hashgraph**: Blockchain network for consensus
-- **IPFS + Pinata**: Decentralized file storage
-- **Tailwind CSS + shadcn/ui**: Modern UI framework
-- **Vite**: Fast build tool with hot reload
-
-## 📋 Coding Standards (Betty Style)
-
-### Naming Conventions
-- **Functions**: `snake_case` (e.g., `generate_certificate_hash`)
-- **Variables**: `snake_case` (e.g., `user_email`, `contract_address`)
-- **Constants**: `UPPER_CASE` (e.g., `MAX_FILE_SIZE`, `DEFAULT_TIMEOUT`)
-- **Components**: `PascalCase` (e.g., `CertificateForm`, `WalletConnector`)
-
-### Documentation Standards
-- **File Headers**: Comprehensive descriptions with author and dates
-- **Function Documentation**: Purpose, parameters, return values
-- **Error Handling**: Consistent categorization and user-friendly messages
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 

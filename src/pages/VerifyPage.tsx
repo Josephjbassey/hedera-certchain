@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CertificateCrypto } from '@/services/crypto';
-import { useWallet } from '@/contexts/WalletContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export const VerifyPage: React.FC = () => {
-  const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('file_upload');
+  const [verificationMethod, setVerificationMethod] = useState<'transaction_id' | 'file_upload' | 'ipfs_cid'>('ipfs_cid');
   const [certificateId, setCertificateId] = useState('');
   const [ipfsCid, setIpfsCid] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -40,63 +39,22 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      let result;
+      const requestBody = {
+        verificationMethod: method,
+        ...params
+      };
 
-      if (method === 'transaction_id' && params.transactionId) {
-        // Query Hedera Mirror Node for transaction details
-        const mirrorNodeUrl = `https://testnet.mirrornode.hedera.com/api/v1/transactions/${params.transactionId}`;
-        const response = await fetch(mirrorNodeUrl);
-        
-        if (response.ok) {
-          const txData = await response.json();
-          // Extract certificate data from transaction memo or logs
-          result = {
-            isValid: true,
-            certificate: {
-              recipient: txData.memo?.recipient || 'Unknown',
-              course: txData.memo?.course || 'Unknown',
-              issuer: txData.memo?.issuer || 'Unknown'
-            },
-            owner: txData.consensus_timestamp,
-            tokenId: params.transactionId
-          };
-        }
-      } else if (method === 'ipfs_cid' && params.ipfsCid) {
-        // Fetch certificate metadata from IPFS
-        const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${params.ipfsCid}`;
-        const response = await fetch(ipfsUrl);
-        
-        if (response.ok) {
-          const certificateData = await response.json();
-          result = {
-            isValid: true,
-            certificate: {
-              recipient: certificateData.recipient,
-              course: certificateData.course,
-              issuer: certificateData.issuer
-            },
-            owner: certificateData.owner,
-            tokenId: certificateData.tokenId
-          };
-        }
+      console.log('Sending verification request:', requestBody);
+
+      const { data, error } = await supabase.functions.invoke('verify-certificate', {
+        body: requestBody
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      if (result && result.isValid) {
-        setVerificationResult({
-          success: true,
-          verified: true,
-          certificate: result.certificate,
-          owner: result.owner,
-          tokenId: result.tokenId,
-          onChain: true
-        });
-      } else {
-        setVerificationResult({
-          success: false,
-          verified: false,
-          error: 'Certificate not found on blockchain or is invalid'
-        });
-      }
+      setVerificationResult(data);
     } catch (error) {
       console.error('Verification failed:', error);
       setVerificationResult({
@@ -119,89 +77,38 @@ export const VerifyPage: React.FC = () => {
     setVerificationResult(null);
 
     try {
-      let result;
+      let requestBody: any = {
+        verificationMethod
+      };
 
-      if (verificationMethod === 'transaction_id' && certificateId) {
-        // Query Hedera Mirror Node for transaction details
-        const mirrorNodeUrl = `https://testnet.mirrornode.hedera.com/api/v1/transactions/${certificateId}`;
-        const response = await fetch(mirrorNodeUrl);
-        
-        if (response.ok) {
-          const txData = await response.json();
-          result = {
-            success: true,
-            verified: true,
-            certificate: {
-              recipient: txData.memo?.recipient || 'Certificate holder',
-              course: txData.memo?.course || 'Certificate course',
-              issuer: txData.memo?.issuer || 'Certificate issuer'
-            },
-            owner: txData.entity_id || 'Unknown',
-            tokenId: certificateId
-          };
-        } else {
-          throw new Error('Transaction not found on Hedera network');
-        }
-      } else if (verificationMethod === 'ipfs_cid' && ipfsCid) {
-        // Fetch certificate metadata from IPFS
-        const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
-        const response = await fetch(ipfsUrl);
-        
-        if (response.ok) {
-          const certificateData = await response.json();
-          result = {
-            success: true,
-            verified: true,
-            certificate: {
-              recipient: certificateData.recipient,
-              course: certificateData.course,
-              issuer: certificateData.issuer
-            },
-            owner: certificateData.owner,
-            tokenId: certificateData.tokenId || ipfsCid
-          };
-        } else {
-          throw new Error('Certificate metadata not found on IPFS');
-        }
+      if (verificationMethod === 'transaction_id') {
+        requestBody.transactionId = certificateId;
+      } else if (verificationMethod === 'ipfs_cid') {
+        requestBody.ipfsCid = ipfsCid;
       } else if (verificationMethod === 'file_upload' && file) {
-        // For file upload, read the JSON and extract the certificate hash
-        const fileContent = await new Promise<string>((resolve) => {
+        // Convert file to base64 for secure verification
+        const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsText(file);
-        });
-        
-        const certificateData = JSON.parse(fileContent);
-        if (certificateData.certificateHash) {
-          // Mock verification for demo
-          result = {
-            success: true,
-            verified: true,
-            certificate: certificateData,
-            owner: 'File Owner',
-            tokenId: 'file-token'
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]); // Remove data:application/json;base64, prefix
           };
-        } else {
-          throw new Error('Invalid certificate file - missing certificate hash');
-        }
+          reader.readAsDataURL(file);
+        });
+        requestBody.certificateFile = base64;
       }
 
-      if (result && result.isValid) {
-        setVerificationResult({
-          success: true,
-          verified: true,
-          certificate: result.certificate,
-          owner: result.owner,
-          tokenId: result.tokenId,
-          onChain: true
-        });
-      } else {
-        setVerificationResult({
-          success: false,
-          verified: false,
-          error: 'Certificate not found on blockchain or is invalid'
-        });
+      console.log('Sending verification request:', { method: verificationMethod });
+
+      const { data, error } = await supabase.functions.invoke('verify-certificate', {
+        body: requestBody
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
+
+      setVerificationResult(data);
     } catch (error) {
       console.error('Verification failed:', error);
       setVerificationResult({

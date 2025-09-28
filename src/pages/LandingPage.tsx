@@ -74,9 +74,15 @@ export const LandingPage: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="flex justify-center mb-12"
+              className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
             >
               <Button variant="hero" size="lg" asChild className="text-lg px-8 py-6">
+                <a href="/setup">
+                  Setup Guide
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </a>
+              </Button>
+              <Button variant="outline" size="lg" asChild className="text-lg px-8 py-6">
                 <a href="/verify">
                   Verify Certificate
                 </a>
@@ -256,7 +262,18 @@ export const LandingPage: React.FC = () => {
               Join educational institutions and organizations worldwide who trust 
               Hedera CertChain for secure, verifiable credentials.
             </p>
-            <div className="flex justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                asChild 
+                className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90"
+              >
+                <a href="/auth">
+                  Start Issuing Certificates
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </a>
+              </Button>
               <Button 
                 variant="outline" 
                 size="lg" 
