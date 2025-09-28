@@ -1,3 +1,19 @@
+/**
+ * Wallet Selection Dialog Component
+ * 
+ * This component provides a user-friendly interface for connecting to different
+ * types of Hedera-compatible wallets. It displays all available wallet options
+ * with clear descriptions and branding.
+ * 
+ * Supported Wallets:
+ * - HashPack: Native Hedera wallet (recommended for best compatibility)
+ * - Blade: Hedera-focused wallet with advanced features
+ * - MetaMask: Popular Ethereum wallet with Hedera EVM support
+ * - WalletConnect: Mobile and cross-platform wallet connections
+ * 
+ * The dialog maintains the original theme and styling - no visual changes made.
+ */
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { connectToMetamask } from "../services/wallets/metamask/metamaskClient";
@@ -5,43 +21,79 @@ import { openWalletConnectModal } from "../services/wallets/walletconnect/wallet
 import { connectToHashPack } from "../services/wallets/hashpack/hashpackClient";
 import { connectToBlade } from "../services/wallets/blade/bladeClient";
 
+/**
+ * Props for the WalletSelectionDialog component
+ */
 interface WalletSelectionDialogProps {
+  /** Whether the dialog is currently open */
   open: boolean;
+  /** Function to control dialog open/close state */
   setOpen: (value: boolean) => void;
+  /** Callback function called when dialog is closed */
   onClose: () => void;
 }
 
+/**
+ * Wallet selection dialog component
+ * 
+ * Displays a modal dialog with buttons for connecting to different wallet types.
+ * Handles the connection process and closes the dialog on successful connection.
+ * 
+ * @param props - Component props for controlling dialog state
+ * @returns JSX element containing the wallet selection dialog
+ */
 export const WalletSelectionDialog = (props: WalletSelectionDialogProps) => {
   const { onClose, open, setOpen } = props;
 
+  /**
+   * Handles wallet connection based on the selected wallet type
+   * 
+   * This function centralizes the wallet connection logic and handles
+   * different connection patterns for each wallet type:
+   * - HashPack & Blade: Direct connection with success/failure response
+   * - MetaMask & WalletConnect: Promise-based connection (assumed successful if no error)
+   * 
+   * @param walletType - The type of wallet to connect to
+   */
   const handleWalletConnect = async (walletType: string) => {
     try {
+      console.log(`🔗 Attempting to connect to ${walletType} wallet...`);
       let success = false;
       
       switch (walletType) {
         case 'hashpack':
           success = await connectToHashPack();
           break;
+          
         case 'blade':
           success = await connectToBlade();
           break;
+          
         case 'metamask':
           await connectToMetamask();
-          success = true;
+          success = true; // MetaMask throws error on failure, so reaching here means success
           break;
+          
         case 'walletconnect':
           await openWalletConnectModal();
-          success = true;
+          success = true; // WalletConnect throws error on failure, so reaching here means success
           break;
+          
         default:
-          console.error('Unknown wallet type:', walletType);
+          console.error('❌ Unknown wallet type:', walletType);
+          return; // Exit early for unknown wallet types
       }
       
+      // Close dialog only if connection was successful
       if (success) {
+        console.log(`✅ Successfully connected to ${walletType}`);
         setOpen(false);
+      } else {
+        console.warn(`⚠️ Failed to connect to ${walletType}`);
       }
     } catch (error) {
-      console.error('Wallet connection error:', error);
+      console.error(`❌ ${walletType} connection error:`, error);
+      // Keep dialog open so user can try again or choose different wallet
     }
   };
 
