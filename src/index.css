@@ -2,73 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hedera CertChain Design System */
+
 /* Hedera CertChain Design System - Professional blockchain certificate platform
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* Base colors - Clean professional palette */
-    --background: 240 10% 98%;
-    --foreground: 240 10% 9%;
+    /* Base colors - Light Mode */
+    --background: 0 0% 98%; /* Off-white #FAFAFA */
+    --foreground: 218 12% 13%; /* Near Black #1F2937 */
 
     /* Card system */
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 9%;
+    --card: 0 0% 100%; /* Pure White */
+    --card-foreground: 218 12% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 9%;
+    --popover-foreground: 218 12% 13%;
 
-    /* Primary - Hedera green to match logo */
-    --primary: 156 100% 18%;
+    /* Primary - Deep Forest Green #164734 */
+    --primary: 156 58% 16%; /* HSL for #164734 */
     --primary-foreground: 0 0% 98%;
-    --primary-light: 156 100% 25%;
-    --primary-glow: 156 100% 35%;
-
-    /* Secondary - Complementary darker green */
-    --secondary: 156 100% 12%;
+    
+    /* Secondary - Emerald Green #10B981 for success states */
+    --secondary: 156 73% 39%; /* HSL for #10B981 */
     --secondary-foreground: 0 0% 98%;
-    --secondary-light: 156 100% 20%;
 
-    /* Accent - Light green for highlights */
-    --accent: 156 60% 45%;
+    /* Accent - Teal #14B8A6 for interactive elements */
+    --accent: 174 84% 40%; /* HSL for #14B8A6 */
     --accent-foreground: 0 0% 98%;
-    --accent-light: 156 60% 55%;
 
     /* Muted tones */
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --muted: 240 5% 96%; /* Light Gray */
+    --muted-foreground: 218 10% 42%; /* Gray #6B7280 */
 
     /* Status colors */
-    --success: 156 100% 25%;
+    --success: 156 73% 39%; /* Green #10B981 */
     --success-foreground: 0 0% 98%;
     
-    --warning: 43 96% 56%;
+    --warning: 38 92% 50%; /* Amber #F59E0B */
     --warning-foreground: 0 0% 9%;
     
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%; /* Red #EF4444 */
     --destructive-foreground: 0 0% 98%;
+    
+    --info: 199 89% 48%; /* Sky Blue #0EA5E9 */
+    --info-foreground: 0 0% 98%;
 
     /* Borders and inputs */
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 156 100% 18%;
-
-    /* Gradients for hero sections and cards */
-    --gradient-primary: linear-gradient(135deg, hsl(156 100% 18%), hsl(156 100% 25%));
-    --gradient-secondary: linear-gradient(135deg, hsl(156 100% 12%), hsl(156 100% 20%));
-    --gradient-accent: linear-gradient(135deg, hsl(156 60% 45%), hsl(156 60% 55%));
-    --gradient-hero: linear-gradient(135deg, hsl(156 100% 18%), hsl(156 60% 35%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(240 5% 98%));
-
-    /* Shadows for depth */
-    --shadow-card: 0 4px 6px -1px hsl(240 10% 9% / 0.1), 0 2px 4px -1px hsl(240 10% 9% / 0.06);
-    --shadow-elevated: 0 10px 15px -3px hsl(240 10% 9% / 0.1), 0 4px 6px -2px hsl(240 10% 9% / 0.05);
-    --shadow-glow: 0 0 20px hsl(156 100% 35% / 0.3);
-
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --border: 220 14% 90%; /* Light Gray #E5E7EB */
+    --input: 220 14% 90%;
+    --ring: 156 58% 16%; /* Matches primary */
 
     --radius: 0.75rem;
 
@@ -90,56 +75,50 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Dark mode - Professional dark blockchain theme */
-    --background: 240 10% 6%;
-    --foreground: 240 5% 90%;
+    /* Dark mode - Near Black #0F1419 background */
+    --background: 215 19% 6%; /* HSL for #0F1419 */
+    --foreground: 210 20% 98%; /* Off White #F9FAFB */
 
-    --card: 240 10% 8%;
-    --card-foreground: 240 5% 90%;
+    /* Card - Dark Gray #1A1F2E */
+    --card: 225 19% 13%; /* HSL for #1A1F2E */
+    --card-foreground: 210 20% 98%;
 
-    --popover: 240 10% 8%;
-    --popover-foreground: 240 5% 90%;
+    --popover: 225 19% 13%;
+    --popover-foreground: 210 20% 98%;
 
-    --primary: 156 100% 25%;
-    --primary-foreground: 240 10% 6%;
-    --primary-light: 156 100% 35%;
-    --primary-glow: 156 100% 45%;
-
-    --secondary: 156 100% 15%;
-    --secondary-foreground: 240 10% 6%;
-    --secondary-light: 156 100% 25%;
-
-    --accent: 156 60% 50%;
-    --accent-foreground: 240 10% 6%;
-    --accent-light: 156 60% 60%;
-
-    --muted: 240 10% 12%;
-    --muted-foreground: 240 5% 60%;
-
-    --success: 156 100% 30%;
-    --success-foreground: 240 10% 6%;
+    /* Primary - Lighter Forest Green #22805A for dark backgrounds */
+    --primary: 156 58% 32%; /* HSL for #22805A */
+    --primary-foreground: 215 19% 6%;
     
-    --warning: 43 96% 56%;
-    --warning-foreground: 240 10% 6%;
+    /* Secondary - Bright Emerald #34D399 */
+    --secondary: 156 61% 52%; /* HSL for #34D399 */
+    --secondary-foreground: 215 19% 6%;
+
+    /* Accent - Bright Teal #5EEAD4 */
+    --accent: 174 71% 65%; /* HSL for #5EEAD4 */
+    --accent-foreground: 215 19% 6%;
+
+    /* Muted tones */
+    --muted: 222 13% 20%; /* Dark Border #374151 */
+    --muted-foreground: 218 11% 83%; /* Light Gray #D1D5DB */
+
+    /* Status colors for dark mode */
+    --success: 156 61% 52%; /* Bright Green #34D399 */
+    --success-foreground: 215 19% 6%;
     
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 240 10% 6%;
+    --warning: 45 93% 65%; /* Yellow #FCD34D */
+    --warning-foreground: 215 19% 6%;
+    
+    --destructive: 0 77% 70%; /* Light Red #F87171 */
+    --destructive-foreground: 215 19% 6%;
+    
+    --info: 199 89% 60%; /* Light Blue #38BDF8 */
+    --info-foreground: 215 19% 6%;
 
-    --border: 240 10% 15%;
-    --input: 240 10% 15%;
-    --ring: 156 100% 25%;
-
-    /* Dark mode gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(156 100% 20%), hsl(156 100% 30%));
-    --gradient-secondary: linear-gradient(135deg, hsl(156 100% 15%), hsl(156 100% 25%));
-    --gradient-accent: linear-gradient(135deg, hsl(156 60% 45%), hsl(156 60% 55%));
-    --gradient-hero: linear-gradient(135deg, hsl(156 100% 20%), hsl(156 60% 40%));
-    --gradient-card: linear-gradient(135deg, hsl(240 10% 8%), hsl(240 10% 10%));
-
-    /* Dark shadows */
-    --shadow-card: 0 4px 6px -1px hsl(240 10% 3% / 0.3), 0 2px 4px -1px hsl(240 10% 3% / 0.2);
-    --shadow-elevated: 0 10px 15px -3px hsl(240 10% 3% / 0.3), 0 4px 6px -2px hsl(240 10% 3% / 0.2);
-    --shadow-glow: 0 0 20px hsl(156 100% 35% / 0.4);
+    /* Borders and inputs */
+    --border: 222 13% 20%; /* Dark Border #374151 */
+    --input: 222 13% 20%;
+    --ring: 156 58% 32%; /* Matches primary */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

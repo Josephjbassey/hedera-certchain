@@ -11,8 +11,7 @@
  * Created: September 28, 2025
  */
 
-import { ethers } from 'ethers';
-import { Contract, ContractTransaction, BigNumber } from 'ethers';
+import { ethers, Contract, BrowserProvider, JsonRpcProvider, Signer, TransactionResponse, TransactionReceipt } from 'ethers';
 
 // Window type extensions for wallet integration
 declare global {
@@ -61,8 +60,8 @@ const CERTIFICATE_NFT_ABI = [
 ];
 
 // Role constants
-const ISSUER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("ISSUER_ROLE"));
-const ADMIN_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("ADMIN_ROLE"));
+const ISSUER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ISSUER_ROLE"));
+const ADMIN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ADMIN_ROLE"));
 
 // Types
 export type WalletType = 'MetaMask' | 'HashPack' | 'Blade' | 'WalletConnect';
@@ -118,14 +117,14 @@ export interface BatchMintParams {
 
 export interface TransactionResult {
   hash: string;
-  receipt?: ethers.providers.TransactionReceipt;
+  receipt?: TransactionReceipt;
   success: boolean;
   error?: string;
 }
 
 export class BlockchainService {
-  private provider: ethers.providers.Web3Provider | null = null;
-  private signer: ethers.Signer | null = null;
+  private provider: BrowserProvider | null = null;
+  private signer: Signer | null = null;
   private contract: Contract | null = null;
   private contractAddress: string;
   private chainId: number;
@@ -138,14 +137,14 @@ export class BlockchainService {
   /**
    * Initialize the service with a Web3 provider
    */
-  async initialize(provider: ethers.providers.Web3Provider): Promise<void> {
+  async initialize(provider: BrowserProvider): Promise<void> {
     try {
       this.provider = provider;
-      this.signer = provider.getSigner();
+      this.signer = await provider.getSigner();
 
       // Verify network
       const network = await provider.getNetwork();
-      if (network.chainId !== this.chainId) {
+      if (Number(network.chainId) !== this.chainId) {
         throw new Error(`Wrong network. Expected chain ID ${this.chainId}, got ${network.chainId}`);
       }
 
@@ -154,7 +153,7 @@ export class BlockchainService {
         throw new Error('Contract address not configured');
       }
 
-      this.contract = new ethers.Contract(
+      this.contract = new Contract(
         this.contractAddress,
         CERTIFICATE_NFT_ABI,
         this.signer
@@ -194,7 +193,7 @@ export class BlockchainService {
 
     const accountAddress = address || await this.getCurrentAccount();
     const balance = await this.provider.getBalance(accountAddress);
-    return ethers.utils.formatEther(balance);
+    return ethers.formatEther(balance);
   }
 
   /**
@@ -206,7 +205,7 @@ export class BlockchainService {
     }
 
     try {
-      const hashBytes = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(params.certificateHash));
+      const hashBytes = ethers.hexlify(ethers.toUtf8Bytes(params.certificateHash));
       const expiryTimestamp = params.expiryTimestamp || 0;
 
       console.log('🔄 Minting certificate...', { 
@@ -215,7 +214,7 @@ export class BlockchainService {
         expiry: expiryTimestamp 
       });
 
-      const transaction: ContractTransaction = await this.contract.mintCertificate(
+      const transaction: TransactionResponse = await this.contract.mintCertificate(
         params.recipient,
         params.ipfsCID,
         hashBytes,
@@ -230,7 +229,7 @@ export class BlockchainService {
 
       return {
         hash: transaction.hash,
-        receipt,
+        receipt: receipt || undefined,
         success: true,
       };
     } catch (error: any) {
@@ -278,14 +277,14 @@ export class BlockchainService {
     }
 
     try {
-      const hashBytes = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(hash));
+      const hashBytes = ethers.hexlify(ethers.toUtf8Bytes(hash));
       const result = await this.contract.getCertificateByHash(hashBytes);
       
       if (!result.exists) {
         return null;
       }
 
-      return await this.verifyCertificate(result.tokenId.toNumber());
+      return await this.verifyCertificate(Number(result.tokenId));
     } catch (error: any) {
       console.error('❌ Failed to verify certificate by hash:', error);
       throw new Error(`Hash verification failed: ${error.message}`);
@@ -303,7 +302,7 @@ export class BlockchainService {
     try {
       console.log('🔄 Revoking certificate...', tokenId);
 
-      const transaction: ContractTransaction = await this.contract.revokeCertificate(tokenId);
+      const transaction: TransactionResponse = await this.contract.revokeCertificate(tokenId);
 
       console.log('📤 Transaction sent:', transaction.hash);
 
@@ -313,7 +312,7 @@ export class BlockchainService {
 
       return {
         hash: transaction.hash,
-        receipt,
+        receipt: receipt || undefined,
         success: true,
       };
     } catch (error: any) {
@@ -346,12 +345,12 @@ export class BlockchainService {
 
       // Convert hashes to bytes32
       const hashBytes = certificateHashes.map(hash => 
-        ethers.utils.hexlify(ethers.utils.toUtf8Bytes(hash))
+        ethers.hexlify(ethers.toUtf8Bytes(hash))
       );
 
       console.log('🔄 Batch minting certificates...', { count: recipients.length });
 
-      const transaction: ContractTransaction = await this.contract.batchMintCertificates(
+      const transaction: TransactionResponse = await this.contract.batchMintCertificates(
         recipients,
         ipfsCIDs,
         hashBytes,
@@ -366,7 +365,7 @@ export class BlockchainService {
 
       return {
         hash: transaction.hash,
-        receipt,
+        receipt: receipt || undefined,
         success: true,
       };
     } catch (error: any) {
@@ -390,7 +389,7 @@ export class BlockchainService {
     try {
       console.log('🔄 Adding issuer...', { issuerAddress, institutionName });
 
-      const transaction: ContractTransaction = await this.contract.addIssuer(
+      const transaction: TransactionResponse = await this.contract.addIssuer(
         issuerAddress,
         institutionName
       );
@@ -403,7 +402,7 @@ export class BlockchainService {
 
       return {
         hash: transaction.hash,
-        receipt,
+        receipt: receipt || undefined,
         success: true,
       };
     } catch (error: any) {
@@ -427,7 +426,7 @@ export class BlockchainService {
     try {
       console.log('🔄 Removing issuer...', issuerAddress);
 
-      const transaction: ContractTransaction = await this.contract.removeIssuer(issuerAddress);
+      const transaction: TransactionResponse = await this.contract.removeIssuer(issuerAddress);
 
       console.log('📤 Transaction sent:', transaction.hash);
 
@@ -437,7 +436,7 @@ export class BlockchainService {
 
       return {
         hash: transaction.hash,
-        receipt,
+        receipt: receipt || undefined,
         success: true,
       };
     } catch (error: any) {
@@ -492,7 +491,7 @@ export class BlockchainService {
 
     try {
       const tokenIds = await this.contract.getCertificatesByOwner(ownerAddress);
-      return tokenIds.map((id: BigNumber) => id.toNumber());
+      return tokenIds.map((id: bigint) => Number(id));
     } catch (error: any) {
       console.error('❌ Failed to get certificates by owner:', error);
       throw new Error(`Failed to get certificates: ${error.message}`);
@@ -509,7 +508,7 @@ export class BlockchainService {
 
     try {
       const tokenIds = await this.contract.getCertificatesByIssuer(issuerAddress);
-      return tokenIds.map((id: BigNumber) => id.toNumber());
+      return tokenIds.map((id: bigint) => Number(id));
     } catch (error: any) {
       console.error('❌ Failed to get certificates by issuer:', error);
       throw new Error(`Failed to get certificates: ${error.message}`);
@@ -531,7 +530,7 @@ export class BlockchainService {
         name: result.name,
         admin: result.admin,
         isActive: result.isActive,
-        certificatesIssued: result.certificatesIssued.toNumber(),
+        certificatesIssued: Number(result.certificatesIssued),
       };
     } catch (error: any) {
       console.error('❌ Failed to get institution:', error);
@@ -565,7 +564,7 @@ export class BlockchainService {
 
     try {
       const totalSupply = await this.contract.totalSupply();
-      return totalSupply.toNumber();
+      return Number(totalSupply);
     } catch (error: any) {
       console.error('❌ Failed to get total supply:', error);
       throw new Error(`Failed to get total supply: ${error.message}`);
@@ -610,11 +609,11 @@ export class BlockchainService {
         throw new Error('Contract not initialized');
       }
       
-      const hashBytes = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(hash));
+      const hashBytes = ethers.keccak256(ethers.toUtf8Bytes(hash));
       const result = await this.contract.getCertificateByHash(hashBytes);
       
       if (result.exists) {
-        return this.verifyCertificateByTokenId(result.tokenId.toNumber());
+        return this.verifyCertificateByTokenId(Number(result.tokenId));
       } else {
         return { success: false, error: 'Certificate not found' };
       }
@@ -637,7 +636,7 @@ export class BlockchainService {
       
       for (const tokenId of tokenIds) {
         try {
-          const verifyResult = await this.verifyCertificateByTokenId(tokenId.toNumber());
+          const verifyResult = await this.verifyCertificateByTokenId(Number(tokenId));
           if (verifyResult.success && verifyResult.certificate) {
             certificates.push(verifyResult.certificate);
           }
@@ -666,7 +665,7 @@ export class BlockchainService {
       
       for (const tokenId of tokenIds) {
         try {
-          const verifyResult = await this.verifyCertificateByTokenId(tokenId.toNumber());
+          const verifyResult = await this.verifyCertificateByTokenId(Number(tokenId));
           if (verifyResult.success && verifyResult.certificate) {
             certificates.push(verifyResult.certificate);
           }
@@ -758,7 +757,7 @@ export class BlockchainService {
    */
   async connectWallet(walletType: WalletType): Promise<WalletConnectionResult> {
     try {
-      let provider: ethers.providers.Web3Provider;
+      let provider: BrowserProvider;
       
       switch (walletType) {
         case 'MetaMask':
@@ -767,7 +766,7 @@ export class BlockchainService {
           }
           
           await window.ethereum.request({ method: 'eth_requestAccounts' });
-          provider = new ethers.providers.Web3Provider(window.ethereum);
+          provider = new BrowserProvider(window.ethereum);
           break;
           
         case 'HashPack':
@@ -839,10 +838,10 @@ export class BlockchainService {
       }
       
       // Re-initialize signer
-      this.signer = this.provider.getSigner();
+      this.signer = await this.provider.getSigner();
       
       if (this.contractAddress) {
-        this.contract = new ethers.Contract(
+        this.contract = new Contract(
           this.contractAddress,
           CERTIFICATE_NFT_ABI,
           this.signer
@@ -943,7 +942,7 @@ export class BlockchainService {
     this.contractAddress = address;
     // Re-initialize contract if we have a signer
     if (this.signer && address) {
-      this.contract = new ethers.Contract(
+      this.contract = new Contract(
         address,
         CERTIFICATE_NFT_ABI,
         this.signer
