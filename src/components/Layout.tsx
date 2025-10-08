@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Menu, X } from 'lucide-react';
+import { Menu, X, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import logoImage from '@/assets/hedera-certchain-logo.png';
+import type { RootState } from '@/store';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,13 +18,27 @@ interface LayoutProps {
  */
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const wallet = useSelector((state: RootState) => state.wallet);
+  const location = useLocation();
 
-  const navigationItems = [
+  // Public navigation (always visible)
+  const publicNavItems = [
     { name: 'Home', href: '/' },
-    { name: 'Setup Guide', href: '/setup' },
-    { name: 'Issue Certificate', href: '/issue' },
-    { name: 'Verify Certificate', href: '/verify' },
+    { name: 'Verify', href: '/verify' },
+    { name: 'About', href: '/about' },
+    { name: 'Contact', href: '/contact' },
+    { name: 'FAQ', href: '/faq' },
   ];
+
+  // Protected navigation (only when wallet is connected)
+  const protectedNavItems = [
+    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Issue Certificate', href: '/issue' },
+  ];
+
+  const navigationItems = wallet.connected 
+    ? [...publicNavItems, ...protectedNavItems]
+    : publicNavItems;
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,23 +62,53 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
-              {navigationItems.map((item, index) => (
+              {navigationItems.map((item, index) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <motion.div
+                    key={item.name}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <Button
+                      variant={isActive ? "default" : "ghost"}
+                      asChild
+                      className="transition-colors"
+                    >
+                      <Link to={item.href}>{item.name}</Link>
+                    </Button>
+                  </motion.div>
+                );
+              })}
+
+              {/* Wallet Connection Button */}
+              {!wallet.connected && (
                 <motion.div
-                  key={item.name}
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  transition={{ duration: 0.5, delay: navigationItems.length * 0.1 }}
                 >
-                  <Button
-                    variant="ghost"
-                    asChild
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <a href={item.href}>{item.name}</a>
+                  <Button variant="outline" asChild className="border-primary text-primary">
+                    <Link to="/wallet">
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Connect Wallet
+                    </Link>
                   </Button>
                 </motion.div>
-              ))}
+              )}
 
+              {wallet.connected && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="ml-2"
+                >
+                  <Badge variant="default" className="font-mono">
+                    {wallet.accountId?.slice(0, 6)}...{wallet.accountId?.slice(-4)}
+                  </Badge>
+                </motion.div>
+              )}
             </nav>
 
             {/* Mobile menu button */}
@@ -91,19 +138,38 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               transition={{ duration: 0.3 }}
             >
               <div className="flex flex-col space-y-2">
-                {navigationItems.map((item) => (
-                  <Button
-                    key={item.name}
-                    variant="ghost"
-                    asChild
-                    className="justify-start text-muted-foreground hover:text-foreground"
-                  >
-                    <a href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-                      {item.name}
-                    </a>
-                  </Button>
-                ))}
+                {navigationItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Button
+                      key={item.name}
+                      variant={isActive ? "default" : "ghost"}
+                      asChild
+                      className="justify-start"
+                    >
+                      <Link to={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                        {item.name}
+                      </Link>
+                    </Button>
+                  );
+                })}
 
+                {!wallet.connected && (
+                  <Button variant="outline" asChild className="justify-start border-primary text-primary">
+                    <Link to="/wallet" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Connect Wallet
+                    </Link>
+                  </Button>
+                )}
+
+                {wallet.connected && (
+                  <div className="px-2 py-2">
+                    <Badge variant="default" className="font-mono">
+                      {wallet.accountId?.slice(0, 6)}...{wallet.accountId?.slice(-4)}
+                    </Badge>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

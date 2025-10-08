@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Award, 
   Shield, 
@@ -9,7 +9,9 @@ import {
   TrendingUp, 
   FileText,
   Wallet,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Eye
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,8 +20,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { RootState } from '@/store';
 
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const wallet = useSelector((state: RootState) => state.wallet);
   const certificates = useSelector((state: RootState) => state.certificate.certificates);
+
+  // Redirect to wallet page if not connected
+  useEffect(() => {
+    if (!wallet.connected) {
+      navigate('/wallet');
+    }
+  }, [wallet.connected, navigate]);
 
   const stats = {
     total: certificates.length,
@@ -27,6 +37,11 @@ const DashboardPage: React.FC = () => {
     revoked: certificates.filter(c => c.status === 'revoked').length,
     expired: certificates.filter(c => c.status === 'expired').length,
   };
+
+  // Don't render if not connected (will redirect)
+  if (!wallet.connected) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -43,24 +58,29 @@ const DashboardPage: React.FC = () => {
       </motion.div>
 
       {/* Wallet Status */}
-      {!wallet.connected && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>Connect your wallet to access all features</span>
-              <Link to="/wallet">
-                <Button size="sm" variant="outline">
-                  Connect Wallet
-                </Button>
-              </Link>
-            </AlertDescription>
-          </Alert>
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-secondary/5">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Connected Wallet</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="font-mono text-base px-3 py-1">
+                    {wallet.accountId}
+                  </Badge>
+                  <Badge variant="outline">
+                    {wallet.network}
+                  </Badge>
+                </div>
+              </div>
+              <Wallet className="h-8 w-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Stats Grid */}
       <motion.div
@@ -122,17 +142,20 @@ const DashboardPage: React.FC = () => {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and operations</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Issue and manage certificates</CardDescription>
+              </div>
+              <Link to="/issue">
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Issue Certificate
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link to="/issue">
-              <Button className="w-full h-24 flex flex-col gap-2" variant="outline">
-                <Award className="h-8 w-8" />
-                <span>Issue Certificate</span>
-              </Button>
-            </Link>
-
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link to="/verify">
               <Button className="w-full h-24 flex flex-col gap-2" variant="outline">
                 <Shield className="h-8 w-8" />
@@ -199,7 +222,7 @@ const DashboardPage: React.FC = () => {
                         {cert.status}
                       </Badge>
                       <Button size="sm" variant="ghost">
-                        View
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
