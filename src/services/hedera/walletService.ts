@@ -30,43 +30,59 @@ class WalletService {
   // HashPack Connection (Primary Wallet)
   async connectHashPack(): Promise<WalletConnection> {
     try {
-      // Wait for HashPack extension to inject into window
-      const waitForHashPack = () => {
-        return new Promise<void>((resolve, reject) => {
-          const maxAttempts = 10;
-          let attempts = 0;
-
-          const checkInterval = setInterval(() => {
-            attempts++;
-            
-            // Check multiple possible injection methods
-            if (window.hashconnect || (window as any).hashpack) {
-              clearInterval(checkInterval);
-              resolve();
-              return;
-            }
-
-            if (attempts >= maxAttempts) {
-              clearInterval(checkInterval);
-              reject(new Error('HashPack extension not detected. Please ensure it is installed and enabled.'));
-            }
-          }, 300);
-        });
+      console.log('Attempting to connect to HashPack...');
+      console.log('Window object keys:', Object.keys(window).filter(k => k.toLowerCase().includes('hash')));
+      
+      // Direct check for HashPack extension injection
+      const checkHashPack = () => {
+        // HashPack injects as hashconnect on window
+        if ((window as any).hc) return (window as any).hc;
+        if ((window as any).hashconnect) return (window as any).hashconnect;
+        if ((window as any).hashConnect) return (window as any).hashConnect;
+        
+        // Check for hashpack object
+        const hashpack = (window as any).hashpack;
+        if (hashpack) return hashpack;
+        
+        return null;
       };
 
-      // Wait for extension to be available
-      await waitForHashPack();
-
-      // Get HashConnect instance from window
-      const hashconnect = window.hashconnect || (window as any).hashpack;
+      // Try immediate check first
+      let hashconnect = checkHashPack();
       
+      // If not found, wait with retries
       if (!hashconnect) {
-        throw new Error('HashPack extension failed to initialize');
+        await new Promise<void>((resolve, reject) => {
+          let attempts = 0;
+          const maxAttempts = 20; // Increased attempts
+          
+          const interval = setInterval(() => {
+            attempts++;
+            console.log(`Checking for HashPack (attempt ${attempts}/${maxAttempts})...`);
+            
+            hashconnect = checkHashPack();
+            
+            if (hashconnect) {
+              clearInterval(interval);
+              console.log('HashPack detected!');
+              resolve();
+            } else if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              reject(new Error('HashPack extension not detected. Please install HashPack from Chrome Web Store and refresh the page.'));
+            }
+          }, 200);
+        });
       }
 
-      // Return cached pairing if available
-      if (hashpackPairing && hashpackPairing.accountIds && hashpackPairing.accountIds.length > 0) {
-        console.log('Using cached HashPack connection:', hashpackPairing.accountIds[0]);
+      if (!hashconnect) {
+        throw new Error('HashPack extension not available');
+      }
+
+      console.log('HashPack object found:', hashconnect);
+
+      // Check for cached pairing
+      if (hashpackPairing?.accountIds?.length > 0) {
+        console.log('Using cached HashPack pairing');
         return {
           accountId: hashpackPairing.accountIds[0],
           publicKey: hashpackPairing.accountIds[0],
@@ -75,18 +91,18 @@ class WalletService {
         };
       }
 
-      // Connect to local wallet
-      const pairingData = await hashconnect.connectToLocalWallet();
+      // Trigger HashPack connection
+      console.log('Requesting HashPack pairing...');
+      const pairingData = await hashconnect.connectToLocalWallet?.() || await hashconnect.pairWallet?.();
       
-      if (!pairingData || !pairingData.accountIds || pairingData.accountIds.length === 0) {
-        throw new Error('Failed to pair with HashPack wallet. Please try again.');
+      if (!pairingData?.accountIds?.length) {
+        throw new Error('No accounts returned from HashPack. Please unlock your wallet and try again.');
       }
 
-      // Cache the pairing
       hashpackPairing = pairingData;
-      
       const accountId = pairingData.accountIds[0];
-      console.log('HashPack connected:', accountId);
+      
+      console.log('HashPack connected successfully:', accountId);
 
       return {
         accountId,
@@ -135,7 +151,17 @@ class WalletService {
         throw new Error('MetaMask not found. Please install MetaMask extension.');
       }
 
-      const ethereum = window.ethereum;
+      const ethereum = window.ethereum as any;
+      
+      // Verify it's actually MetaMask and not Phantom or another wallet
+      if (!ethereum.isMetaMask) {
+        throw new Error('MetaMask not detected. Found another wallet provider instead.');
+      }
+
+      // Additional check to exclude Phantom
+      if (ethereum.isPhantom) {
+        throw new Error('Phantom wallet detected. Please use MetaMask for this connection.');
+      }
       
       // Request account access
       const accounts = await ethereum.request({ 
