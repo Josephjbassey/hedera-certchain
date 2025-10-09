@@ -2,10 +2,13 @@ import { AccountId, LedgerId } from '@hashgraph/sdk';
 
 declare global {
   interface Window {
-    hashpack?: any;
     bladeConnector?: any;
+    hashconnect?: any;
   }
 }
+
+// Store pairing data
+let hashpackPairing: any = null;
 
 export type WalletType = 'hashpack' | 'blade' | 'metamask';
 
@@ -27,29 +30,67 @@ class WalletService {
   // HashPack Connection (Primary Wallet)
   async connectHashPack(): Promise<WalletConnection> {
     try {
-      // Check if HashPack extension is installed
-      if (!window.hashpack) {
-        throw new Error('HashPack wallet not found. Please install HashPack extension.');
+      // Wait for HashPack extension to inject into window
+      const waitForHashPack = () => {
+        return new Promise<void>((resolve, reject) => {
+          const maxAttempts = 10;
+          let attempts = 0;
+
+          const checkInterval = setInterval(() => {
+            attempts++;
+            
+            // Check multiple possible injection methods
+            if (window.hashconnect || (window as any).hashpack) {
+              clearInterval(checkInterval);
+              resolve();
+              return;
+            }
+
+            if (attempts >= maxAttempts) {
+              clearInterval(checkInterval);
+              reject(new Error('HashPack extension not detected. Please ensure it is installed and enabled.'));
+            }
+          }, 300);
+        });
+      };
+
+      // Wait for extension to be available
+      await waitForHashPack();
+
+      // Get HashConnect instance from window
+      const hashconnect = window.hashconnect || (window as any).hashpack;
+      
+      if (!hashconnect) {
+        throw new Error('HashPack extension failed to initialize');
       }
 
-      // Initialize HashPack
-      const hashconnect = window.hashpack;
-      
-      // Request connection
-      const connectionData = await hashconnect.connectToLocalWallet();
-      
-      if (!connectionData || !connectionData.accountIds || connectionData.accountIds.length === 0) {
-        throw new Error('Failed to connect to HashPack wallet');
+      // Return cached pairing if available
+      if (hashpackPairing && hashpackPairing.accountIds && hashpackPairing.accountIds.length > 0) {
+        console.log('Using cached HashPack connection:', hashpackPairing.accountIds[0]);
+        return {
+          accountId: hashpackPairing.accountIds[0],
+          publicKey: hashpackPairing.accountIds[0],
+          walletType: 'hashpack',
+          provider: hashconnect,
+        };
       }
 
-      const accountId = connectionData.accountIds[0];
-      const publicKey = connectionData.publicKey || '';
+      // Connect to local wallet
+      const pairingData = await hashconnect.connectToLocalWallet();
+      
+      if (!pairingData || !pairingData.accountIds || pairingData.accountIds.length === 0) {
+        throw new Error('Failed to pair with HashPack wallet. Please try again.');
+      }
 
+      // Cache the pairing
+      hashpackPairing = pairingData;
+      
+      const accountId = pairingData.accountIds[0];
       console.log('HashPack connected:', accountId);
 
       return {
         accountId,
-        publicKey,
+        publicKey: accountId,
         walletType: 'hashpack',
         provider: hashconnect,
       };
@@ -140,8 +181,10 @@ class WalletService {
     try {
       switch (walletType) {
         case 'hashpack':
-          if (window.hashpack) {
-            await window.hashpack.disconnect();
+          hashpackPairing = null;
+          const hashconnect = window.hashconnect || (window as any).hashpack;
+          if (hashconnect && hashconnect.disconnect) {
+            await hashconnect.disconnect();
           }
           break;
         case 'blade':
