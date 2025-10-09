@@ -16,12 +16,7 @@ import { ethers, Contract, BrowserProvider, JsonRpcProvider, Signer, Transaction
 // Window type extensions for wallet integration
 declare global {
   interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: (...args: any[]) => void) => void;
-      removeAllListeners: (event: string) => void;
-      isMetaMask?: boolean;
-    };
+    ethereum?: any;
     hashpack?: any;
     bladeAPI?: any;
   }

@@ -1,14 +1,10 @@
-import { AccountId, LedgerId } from '@hashgraph/sdk';
-
-declare global {
-  interface Window {
-    bladeConnector?: any;
-    hashconnect?: any;
-  }
-}
-
-// Store pairing data
-let hashpackPairing: any = null;
+import {
+  HederaSessionEvent,
+  HederaJsonRpcMethod,
+  DAppConnector,
+  HederaChainId,
+} from '@hashgraph/hedera-wallet-connect';
+import { LedgerId } from '@hashgraph/sdk';
 
 export type WalletType = 'hashpack' | 'blade' | 'metamask';
 
@@ -20,95 +16,84 @@ export interface WalletConnection {
   signer?: any;
 }
 
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '0ba0b0f4c70a4f6a7f4a4e5b5c5a5d5e';
+
 class WalletService {
+  private dAppConnector: DAppConnector | null = null;
   private network: LedgerId = LedgerId.TESTNET;
+  private initialized: boolean = false;
+
+  async init() {
+    if (this.initialized && this.dAppConnector) {
+      return this.dAppConnector;
+    }
+
+    const metadata = {
+      name: 'Hedera CertChain',
+      description: 'Blockchain Certificate Management on Hedera',
+      url: window.location.origin,
+      icons: ['https://avatars.githubusercontent.com/u/31002956'],
+    };
+
+    this.dAppConnector = new DAppConnector(
+      metadata,
+      this.network,
+      WALLETCONNECT_PROJECT_ID,
+      Object.values(HederaJsonRpcMethod),
+      [HederaSessionEvent.ChainChanged, HederaSessionEvent.AccountsChanged],
+      [HederaChainId.Mainnet, HederaChainId.Testnet],
+    );
+
+    await this.dAppConnector.init({ logger: 'error' });
+    this.initialized = true;
+
+    console.log('DAppConnector initialized');
+    return this.dAppConnector;
+  }
 
   setNetwork(network: 'testnet' | 'mainnet') {
     this.network = network === 'testnet' ? LedgerId.TESTNET : LedgerId.MAINNET;
   }
 
-  // HashPack Connection (Primary Wallet)
+  // Connect to wallet using WalletConnect modal
   async connectHashPack(): Promise<WalletConnection> {
     try {
-      console.log('Attempting to connect to HashPack...');
-      console.log('Window object keys:', Object.keys(window).filter(k => k.toLowerCase().includes('hash')));
+      console.log('Connecting to HashPack via WalletConnect...');
       
-      // Direct check for HashPack extension injection
-      const checkHashPack = () => {
-        // HashPack injects as hashconnect on window
-        if ((window as any).hc) return (window as any).hc;
-        if ((window as any).hashconnect) return (window as any).hashconnect;
-        if ((window as any).hashConnect) return (window as any).hashConnect;
-        
-        // Check for hashpack object
-        const hashpack = (window as any).hashpack;
-        if (hashpack) return hashpack;
-        
-        return null;
-      };
+      const connector = await this.init();
+      
+      // Open WalletConnect modal
+      await connector.openModal();
 
-      // Try immediate check first
-      let hashconnect = checkHashPack();
-      
-      // If not found, wait with retries
-      if (!hashconnect) {
-        await new Promise<void>((resolve, reject) => {
-          let attempts = 0;
-          const maxAttempts = 20; // Increased attempts
-          
-          const interval = setInterval(() => {
-            attempts++;
-            console.log(`Checking for HashPack (attempt ${attempts}/${maxAttempts})...`);
-            
-            hashconnect = checkHashPack();
-            
-            if (hashconnect) {
-              clearInterval(interval);
-              console.log('HashPack detected!');
-              resolve();
-            } else if (attempts >= maxAttempts) {
-              clearInterval(interval);
-              reject(new Error('HashPack extension not detected. Please install HashPack from Chrome Web Store and refresh the page.'));
-            }
-          }, 200);
-        });
+      // Wait for session to be established
+      const session = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout'));
+        }, 60000); // 60 second timeout
+
+        const checkSession = setInterval(() => {
+          const sessions = connector.signers;
+          if (sessions && sessions.length > 0) {
+            clearInterval(checkSession);
+            clearTimeout(timeout);
+            resolve(sessions[0]);
+          }
+        }, 500);
+      });
+
+      if (!session || !session.getAccountId()) {
+        throw new Error('No account connected');
       }
 
-      if (!hashconnect) {
-        throw new Error('HashPack extension not available');
-      }
-
-      console.log('HashPack object found:', hashconnect);
-
-      // Check for cached pairing
-      if (hashpackPairing?.accountIds?.length > 0) {
-        console.log('Using cached HashPack pairing');
-        return {
-          accountId: hashpackPairing.accountIds[0],
-          publicKey: hashpackPairing.accountIds[0],
-          walletType: 'hashpack',
-          provider: hashconnect,
-        };
-      }
-
-      // Trigger HashPack connection
-      console.log('Requesting HashPack pairing...');
-      const pairingData = await hashconnect.connectToLocalWallet?.() || await hashconnect.pairWallet?.();
-      
-      if (!pairingData?.accountIds?.length) {
-        throw new Error('No accounts returned from HashPack. Please unlock your wallet and try again.');
-      }
-
-      hashpackPairing = pairingData;
-      const accountId = pairingData.accountIds[0];
-      
-      console.log('HashPack connected successfully:', accountId);
+      const accountId = session.getAccountId().toString();
+      console.log('HashPack connected:', accountId);
 
       return {
         accountId,
         publicKey: accountId,
         walletType: 'hashpack',
-        provider: hashconnect,
+        provider: connector,
+        signer: session,
       };
     } catch (error) {
       console.error('HashPack connection error:', error);
@@ -207,10 +192,8 @@ class WalletService {
     try {
       switch (walletType) {
         case 'hashpack':
-          hashpackPairing = null;
-          const hashconnect = window.hashconnect || (window as any).hashpack;
-          if (hashconnect && hashconnect.disconnect) {
-            await hashconnect.disconnect();
+          if (this.dAppConnector) {
+            await this.dAppConnector.disconnectAll();
           }
           break;
         case 'blade':
@@ -219,7 +202,6 @@ class WalletService {
           }
           break;
         case 'metamask':
-          // MetaMask doesn't have a programmatic disconnect
           console.log('MetaMask disconnect (manual)');
           break;
       }
@@ -230,26 +212,17 @@ class WalletService {
     }
   }
 
-  // Get account balance
-  async getAccountBalance(accountId: string): Promise<string> {
-    try {
-      // This will be implemented with Hedera SDK client
-      // For now, return placeholder
-      return '0';
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      throw error;
-    }
+  // Get the DAppConnector instance
+  getConnector(): DAppConnector | null {
+    return this.dAppConnector;
   }
 
-  // Validate Hedera Account ID format
-  isValidAccountId(accountId: string): boolean {
-    try {
-      AccountId.fromString(accountId);
-      return true;
-    } catch {
-      return false;
-    }
+}
+
+declare global {
+  interface Window {
+    bladeConnector?: any;
+    ethereum?: any;
   }
 }
 
