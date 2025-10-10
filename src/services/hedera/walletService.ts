@@ -62,24 +62,35 @@ class WalletService {
       
       const connector = await this.init();
       
-      // Open WalletConnect modal
+      // Open WalletConnect modal and wait for connection
       await connector.openModal();
 
-      // Wait for session to be established
-      const session = await new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout'));
-        }, 60000); // 60 second timeout
+      // Wait for session with immediate check
+      const getSession = () => {
+        const sessions = connector.signers;
+        return sessions && sessions.length > 0 ? sessions[0] : null;
+      };
 
-        const checkSession = setInterval(() => {
-          const sessions = connector.signers;
-          if (sessions && sessions.length > 0) {
-            clearInterval(checkSession);
-            clearTimeout(timeout);
-            resolve(sessions[0]);
-          }
-        }, 500);
-      });
+      // Check immediately first
+      let session = getSession();
+      
+      if (!session) {
+        // If not immediately available, wait with timeout
+        session = await new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Connection timeout - please try again'));
+          }, 30000); // 30 second timeout
+
+          const checkSession = setInterval(() => {
+            const currentSession = getSession();
+            if (currentSession) {
+              clearInterval(checkSession);
+              clearTimeout(timeout);
+              resolve(currentSession);
+            }
+          }, 100); // Check every 100ms instead of 500ms
+        });
+      }
 
       if (!session || !session.getAccountId()) {
         throw new Error('No account connected');
@@ -222,7 +233,6 @@ class WalletService {
 declare global {
   interface Window {
     bladeConnector?: any;
-    ethereum?: any;
   }
 }
 
