@@ -48,8 +48,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store';
 
-import { useWallet } from '@/contexts/WalletContext';
 import { blockchainService } from '@/services/blockchain/contractService';
 import { ipfsService, type CertificateMetadata } from '@/services/ipfs/ipfsService';
 

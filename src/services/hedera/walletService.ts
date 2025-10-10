@@ -16,7 +16,7 @@ export interface WalletConnection {
   signer?: any;
 }
 
-const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '0ba0b0f4c70a4f6a7f4a4e5b5c5a5d5e';
+const WALLETCONNECT_PROJECT_ID = '0ba0b0f4c70a4f6a7f4a4e5b5c5a5d5e';
 
 class WalletService {
   private dAppConnector: DAppConnector | null = null;

@@ -4,7 +4,6 @@ import { Shield, Award, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CertificateVerifier } from '@/components/certificates/CertificateVerifier';
-import { WalletProvider } from '@/contexts/WalletContext';
 
 /**
  * Certificate Verification Page
@@ -38,8 +37,7 @@ export const VerifyPage: React.FC = () => {
   }, []);
 
   return (
-    <WalletProvider>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
         <div className="container mx-auto px-4">
           {/* Header */}
           <motion.div
@@ -129,7 +127,6 @@ export const VerifyPage: React.FC = () => {
           </motion.div>
         </div>
       </div>
-    </WalletProvider>
   );
 };
 
