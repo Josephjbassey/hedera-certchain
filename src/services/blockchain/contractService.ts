@@ -13,15 +13,6 @@
 
 import { ethers, Contract, BrowserProvider, JsonRpcProvider, Signer, TransactionResponse, TransactionReceipt } from 'ethers';
 
-// Window type extensions for wallet integration
-declare global {
-  interface Window {
-    ethereum?: any;
-    hashpack?: any;
-    bladeAPI?: any;
-  }
-}
-
 // Contract ABI - This would typically be imported from compiled artifacts
 const CERTIFICATE_NFT_ABI = [
   // Certificate operations
@@ -760,8 +751,12 @@ export class BlockchainService {
             return { success: false, error: 'MetaMask not installed' };
           }
           
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-          provider = new BrowserProvider(window.ethereum);
+          const ethereum = window.ethereum as any;
+          if (!ethereum || !ethereum.request) {
+            return { success: false, error: 'MetaMask not available' };
+          }
+          await ethereum.request({ method: 'eth_requestAccounts' });
+          provider = new BrowserProvider(ethereum);
           break;
           
         case 'HashPack':
@@ -825,8 +820,9 @@ export class BlockchainService {
       }
       
       // For MetaMask, request account change
-      if (window.ethereum) {
-        await window.ethereum.request({
+      const ethereum = window.ethereum as any;
+      if (ethereum && ethereum.request) {
+        await ethereum.request({
           method: 'wallet_requestPermissions',
           params: [{ eth_accounts: {} }],
         });
@@ -881,8 +877,9 @@ export class BlockchainService {
     this.accountChangeListeners.push(callback);
     
     // Set up MetaMask listener
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+    const ethereum = window.ethereum as any;
+    if (ethereum && ethereum.on) {
+      ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length > 0) {
           callback(accounts[0]);
         } else {
@@ -896,8 +893,9 @@ export class BlockchainService {
     this.networkChangeListeners.push(callback);
     
     // Set up MetaMask listener
-    if (window.ethereum) {
-      window.ethereum.on('chainChanged', async () => {
+    const ethereum = window.ethereum as any;
+    if (ethereum && ethereum.on) {
+      ethereum.on('chainChanged', async () => {
         try {
           const network = await this.getNetwork();
           callback(network);
@@ -912,8 +910,9 @@ export class BlockchainService {
     this.disconnectListeners.push(callback);
     
     // Set up MetaMask listener
-    if (window.ethereum) {
-      window.ethereum.on('disconnect', callback);
+    const ethereum = window.ethereum as any;
+    if (ethereum && ethereum.on) {
+      ethereum.on('disconnect', callback);
     }
   }
 
@@ -923,10 +922,13 @@ export class BlockchainService {
     this.disconnectListeners = [];
     
     // Remove MetaMask listeners
-    if (window.ethereum) {
-      window.ethereum.removeAllListeners('accountsChanged');
-      window.ethereum.removeAllListeners('chainChanged');
-      window.ethereum.removeAllListeners('disconnect');
+    const ethereum = window.ethereum;
+    if (ethereum && ethereum.removeListener) {
+      if (typeof ethereum.removeAllListeners === 'function') {
+        (ethereum as any).removeAllListeners('accountsChanged');
+        (ethereum as any).removeAllListeners('chainChanged');
+        (ethereum as any).removeAllListeners('disconnect');
+      }
     }
   }
 

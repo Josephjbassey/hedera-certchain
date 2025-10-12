@@ -1,0 +1,16 @@
+// Manual Supabase client without type dependencies
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://rcrtloxuqhnjlusisjgf.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnRsb3h1cWhuamx1c2lzamdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NTUyODcsImV4cCI6MjA3NDMzMTI4N30.WF-qJWYdLy8nJgvbhPEPSfN6jzApfe6psfjA8Y7NB-g';
+
+// Import the supabase client like this:
+// import { supabase } from "@/integrations/supabase/manual-client";
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
