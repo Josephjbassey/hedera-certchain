@@ -55,170 +55,63 @@ class WalletService {
     this.network = network === 'testnet' ? LedgerId.TESTNET : LedgerId.MAINNET;
   }
 
-  // Connect to wallet using WalletConnect modal
-  async connectHashPack(): Promise<WalletConnection> {
+  // Connect using WalletConnect modal - supports all Hedera wallets
+  async connect(): Promise<WalletConnection> {
     try {
-      console.log('Connecting to HashPack via WalletConnect...');
+      console.log('Opening WalletConnect modal...');
       
       const connector = await this.init();
       
-      // Open WalletConnect modal and wait for connection
+      // Open WalletConnect modal - this will show all available wallets
       await connector.openModal();
 
-      // Wait for session with immediate check
-      const getSession = () => {
-        const sessions = connector.signers;
-        return sessions && sessions.length > 0 ? sessions[0] : null;
-      };
+      // Wait for session to be established
+      const session = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout - please try again'));
+        }, 60000); // 60 second timeout
 
-      // Check immediately first
-      let session = getSession();
-      
-      if (!session) {
-        // If not immediately available, wait with timeout
-        session = await new Promise<any>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error('Connection timeout - please try again'));
-          }, 30000); // 30 second timeout
-
-          const checkSession = setInterval(() => {
-            const currentSession = getSession();
-            if (currentSession) {
-              clearInterval(checkSession);
-              clearTimeout(timeout);
-              resolve(currentSession);
-            }
-          }, 100); // Check every 100ms instead of 500ms
-        });
-      }
+        const checkSession = setInterval(() => {
+          const sessions = connector.signers;
+          if (sessions && sessions.length > 0) {
+            clearInterval(checkSession);
+            clearTimeout(timeout);
+            resolve(sessions[0]);
+          }
+        }, 100);
+      });
 
       if (!session || !session.getAccountId()) {
         throw new Error('No account connected');
       }
 
       const accountId = session.getAccountId().toString();
-      console.log('HashPack connected:', accountId);
+      const publicKey = session.getAccountKey?.().toString() || accountId;
+      
+      console.log('Wallet connected:', accountId);
 
       return {
         accountId,
-        publicKey: accountId,
-        walletType: 'hashpack',
+        publicKey,
+        walletType: 'hashpack', // Default to hashpack for compatibility
         provider: connector,
         signer: session,
       };
     } catch (error) {
-      console.error('HashPack connection error:', error);
+      console.error('Wallet connection error:', error);
       throw error;
-    }
-  }
-
-  // Blade Wallet Connection
-  async connectBlade(): Promise<WalletConnection> {
-    try {
-      if (!window.bladeConnector) {
-        throw new Error('Blade wallet not found. Please install Blade wallet extension.');
-      }
-
-      const blade = window.bladeConnector;
-      const result = await blade.createSession();
-
-      if (!result || !result.accountId) {
-        throw new Error('Failed to connect to Blade wallet');
-      }
-
-      console.log('Blade connected:', result.accountId);
-
-      return {
-        accountId: result.accountId,
-        publicKey: result.publicKey || '',
-        walletType: 'blade',
-        provider: blade,
-      };
-    } catch (error) {
-      console.error('Blade connection error:', error);
-      throw error;
-    }
-  }
-
-  // MetaMask Connection (for EVM compatibility)
-  async connectMetaMask(): Promise<WalletConnection> {
-    try {
-      if (!window.ethereum) {
-        throw new Error('MetaMask not found. Please install MetaMask extension.');
-      }
-
-      const ethereum = window.ethereum as any;
-      
-      // Verify it's actually MetaMask and not Phantom or another wallet
-      if (!ethereum.isMetaMask) {
-        throw new Error('MetaMask not detected. Found another wallet provider instead.');
-      }
-
-      // Additional check to exclude Phantom
-      if (ethereum.isPhantom) {
-        throw new Error('Phantom wallet detected. Please use MetaMask for this connection.');
-      }
-      
-      // Request account access
-      const accounts = await ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No MetaMask accounts found');
-      }
-
-      const evmAddress = accounts[0];
-      
-      console.log('MetaMask connected:', evmAddress);
-
-      return {
-        accountId: evmAddress, // EVM address
-        publicKey: evmAddress,
-        walletType: 'metamask',
-        provider: ethereum,
-      };
-    } catch (error) {
-      console.error('MetaMask connection error:', error);
-      throw error;
-    }
-  }
-
-  // Generic connect function
-  async connect(walletType: WalletType): Promise<WalletConnection> {
-    switch (walletType) {
-      case 'hashpack':
-        return this.connectHashPack();
-      case 'blade':
-        return this.connectBlade();
-      case 'metamask':
-        return this.connectMetaMask();
-      default:
-        throw new Error(`Unsupported wallet type: ${walletType}`);
     }
   }
 
   // Disconnect wallet
-  async disconnect(walletType: WalletType): Promise<void> {
+  async disconnect(): Promise<void> {
     try {
-      switch (walletType) {
-        case 'hashpack':
-          if (this.dAppConnector) {
-            await this.dAppConnector.disconnectAll();
-          }
-          break;
-        case 'blade':
-          if (window.bladeConnector) {
-            await window.bladeConnector.killSession();
-          }
-          break;
-        case 'metamask':
-          console.log('MetaMask disconnect (manual)');
-          break;
+      if (this.dAppConnector) {
+        await this.dAppConnector.disconnectAll();
+        console.log('Wallet disconnected');
       }
-      console.log(`${walletType} disconnected`);
     } catch (error) {
-      console.error(`Error disconnecting ${walletType}:`, error);
+      console.error('Error disconnecting wallet:', error);
       throw error;
     }
   }
@@ -228,11 +121,11 @@ class WalletService {
     return this.dAppConnector;
   }
 
-}
-
-declare global {
-  interface Window {
-    bladeConnector?: any;
+  // Get connected session
+  getSession() {
+    if (!this.dAppConnector) return null;
+    const sessions = this.dAppConnector.signers;
+    return sessions && sessions.length > 0 ? sessions[0] : null;
   }
 }
 

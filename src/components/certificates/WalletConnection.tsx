@@ -7,48 +7,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { walletService, type WalletType } from '@/services/hedera/walletService';
+import { walletService } from '@/services/hedera/walletService';
 import { setWalletConnected, setWalletDisconnected, setNetwork } from '@/store/slices/walletSlice';
 import type { RootState } from '@/store';
-
-const WALLET_OPTIONS: Array<{
-  type: WalletType;
-  name: string;
-  description: string;
-  isPrimary?: boolean;
-}> = [
-  {
-    type: 'hashpack',
-    name: 'HashPack',
-    description: 'Primary Hedera wallet - Recommended',
-    isPrimary: true,
-  },
-  {
-    type: 'blade',
-    name: 'Blade Wallet',
-    description: 'Hedera wallet alternative',
-  },
-  {
-    type: 'metamask',
-    name: 'MetaMask',
-    description: 'EVM compatibility layer',
-  },
-];
 
 export const WalletConnection: React.FC = () => {
   const dispatch = useDispatch();
   const { toast } = useToast();
   const wallet = useSelector((state: RootState) => state.wallet);
-  const [connecting, setConnecting] = React.useState<WalletType | null>(null);
+  const [isConnecting, setIsConnecting] = React.useState(false);
 
   useEffect(() => {
     walletService.setNetwork(wallet.network);
   }, [wallet.network]);
 
-  const handleConnect = async (walletType: WalletType) => {
-    setConnecting(walletType);
+  const handleConnect = async () => {
+    setIsConnecting(true);
     try {
-      const connection = await walletService.connect(walletType);
+      // This opens the WalletConnect modal with all available wallets
+      const connection = await walletService.connect();
       
       dispatch(setWalletConnected({
         accountId: connection.accountId,
@@ -60,24 +37,22 @@ export const WalletConnection: React.FC = () => {
 
       toast({
         title: "Wallet Connected",
-        description: `Successfully connected to ${walletType}`,
+        description: `Successfully connected: ${connection.accountId}`,
       });
     } catch (error: any) {
       toast({
         title: "Connection Failed",
-        description: error.message || `Failed to connect to ${walletType}`,
+        description: error.message || 'Failed to connect wallet',
         variant: "destructive",
       });
     } finally {
-      setConnecting(null);
+      setIsConnecting(false);
     }
   };
 
   const handleDisconnect = async () => {
-    if (!wallet.walletType) return;
-
     try {
-      await walletService.disconnect(wallet.walletType);
+      await walletService.disconnect();
       dispatch(setWalletDisconnected());
 
       toast({
@@ -102,7 +77,7 @@ export const WalletConnection: React.FC = () => {
             Wallet Connected
           </CardTitle>
           <CardDescription>
-            {WALLET_OPTIONS.find(w => w.type === wallet.walletType)?.name || wallet.walletType}
+            Connected via Hedera Wallet Connect
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -130,55 +105,49 @@ export const WalletConnection: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <Alert>
-        <Wallet className="h-4 w-4" />
-        <AlertDescription>
-          Connect your Hedera wallet to access all features. HashPack is recommended for the best experience.
-        </AlertDescription>
-      </Alert>
+    <Card>
+      <CardHeader>
+        <CardTitle>Connect Your Wallet</CardTitle>
+        <CardDescription>
+          Connect your Hedera wallet to manage blockchain certificates
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Make sure you have a Hedera wallet installed (HashPack, Blade, etc.) and set to testnet mode
+          </AlertDescription>
+        </Alert>
 
-      <div className="grid grid-cols-1 gap-4">
-        {WALLET_OPTIONS.map((option) => (
-          <motion.div
-            key={option.type}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={handleConnect}
+            disabled={isConnecting}
           >
-            <Card className={option.isPrimary ? 'border-primary' : ''}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{option.name}</h3>
-                      {option.isPrimary && (
-                        <Badge variant="default">Recommended</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {option.description}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => handleConnect(option.type)}
-                    disabled={connecting !== null}
-                    className="min-w-[120px]"
-                  >
-                    {connecting === option.type ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      'Connect'
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+            {isConnecting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Opening Wallet Selection...
+              </>
+            ) : (
+              <>
+                <Wallet className="mr-2 h-5 w-5" />
+                Connect Wallet
+              </>
+            )}
+          </Button>
+        </motion.div>
+
+        <p className="text-sm text-muted-foreground text-center">
+          A wallet selection dialog will open. Choose your preferred Hedera wallet to continue.
+        </p>
+      </CardContent>
+    </Card>
   );
 };
