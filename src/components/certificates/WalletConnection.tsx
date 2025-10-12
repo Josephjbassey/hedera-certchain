@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,37 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { walletService } from '@/services/hedera/walletService';
-import { setWalletConnected, setWalletDisconnected, setNetwork } from '@/store/slices/walletSlice';
-import type { RootState } from '@/store';
+import { useWallet } from '@/contexts/WalletContext';
 
 export const WalletConnection: React.FC = () => {
-  const dispatch = useDispatch();
   const { toast } = useToast();
-  const wallet = useSelector((state: RootState) => state.wallet);
-  const [isConnecting, setIsConnecting] = React.useState(false);
-
-  useEffect(() => {
-    walletService.setNetwork(wallet.network);
-  }, [wallet.network]);
+  const { isConnected, isConnecting, accountId, network, connect, disconnect } = useWallet();
 
   const handleConnect = async () => {
-    setIsConnecting(true);
     try {
-      // This opens the WalletConnect modal with all available wallets
-      const connection = await walletService.connect();
-      
-      dispatch(setWalletConnected({
-        accountId: connection.accountId,
-        walletType: connection.walletType,
-        publicKey: connection.publicKey,
-        provider: connection.provider,
-        signer: connection.signer,
-      }));
-
+      await connect();
       toast({
         title: "Wallet Connected",
-        description: `Successfully connected: ${connection.accountId}`,
+        description: `Successfully connected to Hedera ${network}`,
       });
     } catch (error: any) {
       toast({
@@ -45,16 +25,12 @@ export const WalletConnection: React.FC = () => {
         description: error.message || 'Failed to connect wallet',
         variant: "destructive",
       });
-    } finally {
-      setIsConnecting(false);
     }
   };
 
   const handleDisconnect = async () => {
     try {
-      await walletService.disconnect();
-      dispatch(setWalletDisconnected());
-
+      await disconnect();
       toast({
         title: "Wallet Disconnected",
         description: "Your wallet has been disconnected",
@@ -68,7 +44,7 @@ export const WalletConnection: React.FC = () => {
     }
   };
 
-  if (wallet.connected && wallet.accountId) {
+  if (isConnected && accountId) {
     return (
       <Card>
         <CardHeader>
@@ -85,13 +61,13 @@ export const WalletConnection: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Account</span>
               <Badge variant="secondary" className="font-mono">
-                {wallet.accountId}
+                {accountId}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Network</span>
-              <Badge variant={wallet.network === 'testnet' ? 'outline' : 'default'}>
-                {wallet.network}
+              <Badge variant={network === 'testnet' ? 'outline' : 'default'}>
+                {network}
               </Badge>
             </div>
           </div>
