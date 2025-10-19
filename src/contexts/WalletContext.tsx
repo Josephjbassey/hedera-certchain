@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import { walletService } from '@/services/hedera/walletService';
-import type { DAppConnector } from '@hashgraph/hedera-wallet-connect';
+import type { HashConnect } from 'hashconnect';
 
 // Context type definition
 interface WalletContextType {
@@ -15,8 +15,8 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   
-  // DApp connector instance
-  dAppConnector: DAppConnector | null;
+  // HashConnect instance
+  dAppConnector: HashConnect | null;
   
   // Active session
   session: any | null;
@@ -34,10 +34,10 @@ export function WalletProvider({ children, network = 'testnet' }: WalletProvider
   const [isConnecting, setIsConnecting] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [publicKey, setPublicKey] = useState<string | null>(null);
-  const [dAppConnector, setDAppConnector] = useState<DAppConnector | null>(null);
+  const [dAppConnector, setDAppConnector] = useState<HashConnect | null>(null);
   const [session, setSession] = useState<any | null>(null);
 
-  // Initialize DAppConnector
+  // Initialize HashConnect
   useEffect(() => {
     const initConnector = async () => {
       try {
@@ -47,20 +47,19 @@ export function WalletProvider({ children, network = 'testnet' }: WalletProvider
         
         // Try to restore existing session
         const existingSession = walletService.getSession();
-        if (existingSession) {
-          const existingAccountId = existingSession.getAccountId?.();
-          const existingPublicKey = existingSession.getAccountKey?.();
+        const pairedAccounts = walletService.getPairedAccounts();
+        
+        if (existingSession && pairedAccounts.length > 0) {
+          const restoredAccountId = pairedAccounts[0];
           
-          if (existingAccountId) {
-            setAccountId(existingAccountId.toString());
-            setPublicKey(existingPublicKey?.toString() || existingAccountId.toString());
-            setIsConnected(true);
-            setSession(existingSession);
-            console.log('Restored wallet session:', existingAccountId.toString());
-          }
+          setAccountId(restoredAccountId);
+          setPublicKey(restoredAccountId);
+          setIsConnected(true);
+          setSession(existingSession);
+          console.log('- Restored wallet session:', restoredAccountId);
         }
       } catch (error) {
-        console.error('Failed to initialize wallet connector:', error);
+        console.error('Failed to initialize HashConnect:', error);
       }
     };
 
