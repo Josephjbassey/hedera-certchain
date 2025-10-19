@@ -1,3 +1,11 @@
+import {
+  DAppConnector,
+  HederaJsonRpcMethod,
+  HederaSessionEvent,
+  HederaChainId,
+} from '@hashgraph/hedera-wallet-connect';
+import { LedgerId } from '@hashgraph/sdk';
+
 export type WalletType = 'hashpack' | 'blade' | 'metamask';
 
 export interface WalletConnection {
@@ -8,77 +16,102 @@ export interface WalletConnection {
   signer?: any;
 }
 
-declare global {
-  interface Window {
-    hashpack?: {
-      isPaired: () => Promise<boolean>;
-      pair: (metadata: any) => Promise<any>;
-      sendTransaction: (transaction: any) => Promise<any>;
-      disconnect: () => Promise<void>;
-    };
-  }
-}
+// Use a more reliable WalletConnect project ID
+const WALLETCONNECT_PROJECT_ID = 'cf5090df840ab6f63f0ebf6cb686c522';
 
 class WalletService {
-  private network: 'testnet' | 'mainnet' = 'testnet';
-  private pairingData: any = null;
-
-  setNetwork(network: 'testnet' | 'mainnet') {
-    this.network = network;
-  }
+  private dAppConnector: DAppConnector | null = null;
+  private network: LedgerId = LedgerId.TESTNET;
+  private initialized: boolean = false;
 
   async init() {
-    // Check if HashPack extension is installed
-    if (!window.hashpack) {
-      throw new Error('HashPack wallet extension not detected. Please install HashPack from https://www.hashpack.app/');
+    if (this.initialized && this.dAppConnector) {
+      return this.dAppConnector;
     }
-    console.log('HashPack detected');
+
+    const metadata = {
+      name: 'Hedera CertChain',
+      description: 'Blockchain Certificate Management on Hedera',
+      url: window.location.origin,
+      icons: ['https://avatars.githubusercontent.com/u/31002956'],
+    };
+
+    this.dAppConnector = new DAppConnector(
+      metadata,
+      this.network,
+      WALLETCONNECT_PROJECT_ID,
+      Object.values(HederaJsonRpcMethod),
+      [HederaSessionEvent.ChainChanged, HederaSessionEvent.AccountsChanged],
+      [HederaChainId.Testnet],
+    );
+
+    try {
+      await this.dAppConnector.init({ logger: 'error' });
+      this.initialized = true;
+      console.log('DAppConnector initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize DAppConnector:', error);
+      throw new Error('Please ensure HashPack wallet is installed and try again');
+    }
+
+    return this.dAppConnector;
+  }
+
+  setNetwork(network: 'testnet' | 'mainnet') {
+    this.network = network === 'testnet' ? LedgerId.TESTNET : LedgerId.MAINNET;
   }
 
   async connect(): Promise<WalletConnection> {
     try {
-      console.log('Connecting to HashPack wallet...');
+      console.log('Opening wallet connection modal...');
       
-      await this.init();
+      const connector = await this.init();
+      
+      // Open WalletConnect modal
+      await connector.openModal();
 
-      if (!window.hashpack) {
-        throw new Error('HashPack not available');
+      // Wait for session to be established
+      const session = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout - please approve the connection in your wallet'));
+        }, 120000); // 2 minute timeout
+
+        const checkSession = setInterval(() => {
+          const sessions = connector.signers;
+          if (sessions && sessions.length > 0) {
+            clearInterval(checkSession);
+            clearTimeout(timeout);
+            resolve(sessions[0]);
+          }
+        }, 500); // Check every 500ms instead of 100ms
+      });
+
+      if (!session || !session.getAccountId()) {
+        throw new Error('No account connected - please try again');
       }
 
-      // Check if already paired
-      const isPaired = await window.hashpack.isPaired();
+      const accountId = session.getAccountId().toString();
+      const publicKey = session.getAccountKey?.().toString() || accountId;
       
-      if (!isPaired) {
-        // Pair with HashPack
-        const appMetadata = {
-          name: 'Hedera CertChain',
-          description: 'Blockchain Certificate Management on Hedera',
-          icons: ['https://avatars.githubusercontent.com/u/31002956'],
-          url: window.location.origin,
-        };
-
-        this.pairingData = await window.hashpack.pair(appMetadata);
-      } else {
-        console.log('Already paired with HashPack');
-      }
-
-      // Get account info from HashPack
-      const accountId = this.pairingData?.accountIds?.[0] || 'Connected';
-      
-      console.log('HashPack wallet connected:', accountId);
+      console.log('Wallet connected successfully:', accountId);
 
       return {
         accountId,
-        publicKey: accountId,
+        publicKey,
         walletType: 'hashpack',
-        provider: window.hashpack,
-        signer: this.pairingData,
+        provider: connector,
+        signer: session,
       };
     } catch (error) {
       console.error('Wallet connection error:', error);
       
-      if (error instanceof Error && error.message.includes('not detected')) {
-        throw new Error('Please install HashPack wallet extension from https://www.hashpack.app/download');
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected')) {
+          throw new Error('Connection rejected - please try again and approve in your wallet');
+        }
+        if (error.message.includes('timeout')) {
+          throw new Error('Connection timeout - please ensure HashPack is running and try again');
+        }
       }
       
       throw error;
@@ -87,9 +120,8 @@ class WalletService {
 
   async disconnect(): Promise<void> {
     try {
-      if (window.hashpack) {
-        await window.hashpack.disconnect();
-        this.pairingData = null;
+      if (this.dAppConnector) {
+        await this.dAppConnector.disconnectAll();
         console.log('Wallet disconnected');
       }
     } catch (error) {
@@ -98,8 +130,14 @@ class WalletService {
     }
   }
 
+  getConnector(): DAppConnector | null {
+    return this.dAppConnector;
+  }
+
   getSession() {
-    return this.pairingData;
+    if (!this.dAppConnector) return null;
+    const sessions = this.dAppConnector.signers;
+    return sessions && sessions.length > 0 ? sessions[0] : null;
   }
 }
 
