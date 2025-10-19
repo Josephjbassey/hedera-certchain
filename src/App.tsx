@@ -16,7 +16,10 @@ import ContactPage from "./pages/ContactPage";
 import FAQPage from "./pages/FAQPage";
 import AuthPage from "./pages/AuthPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import ManageInstitutionsPage from "./pages/ManageInstitutionsPage";
+import ManageUsersPage from "./pages/ManageUsersPage";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -31,15 +34,55 @@ const App = () => {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/admin" element={<AdminDashboardPage />} />
-              <Route path="/wallet" element={<WalletPage />} />
-              <Route path="/setup" element={<SetupPage />} />
-              <Route path="/issue" element={<IssuePage />} />
-              <Route path="/verify" element={<VerifyPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/faq" element={<FAQPage />} />
+              <Route path="/verify" element={<VerifyPage />} />
+              
+              {/* Protected Routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/wallet" element={
+                <ProtectedRoute>
+                  <WalletPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/setup" element={
+                <ProtectedRoute>
+                  <SetupPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/issue" element={
+                <ProtectedRoute requiredRole="instructor">
+                  <IssuePage />
+                </ProtectedRoute>
+              } />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="institution">
+                  <AdminDashboardPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/institutions" element={
+                <ProtectedRoute requiredRole="superadmin">
+                  <ManageInstitutionsPage />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/users" element={
+                <ProtectedRoute requiredRole="institution">
+                  <ManageUsersPage />
+                </ProtectedRoute>
+              } />
+              
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

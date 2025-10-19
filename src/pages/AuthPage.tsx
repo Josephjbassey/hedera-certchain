@@ -22,15 +22,51 @@ export default function AuthPage() {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate('/dashboard');
+        // Get user role and redirect accordingly
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id);
+
+        if (roles && roles.length > 0) {
+          const userRoles = roles.map(r => r.role);
+          if (userRoles.includes('superadmin') || userRoles.includes('institution')) {
+            navigate('/admin');
+          } else if (userRoles.includes('instructor')) {
+            navigate('/dashboard');
+          } else {
+            navigate('/dashboard/my-certificates');
+          }
+        } else {
+          navigate('/dashboard/my-certificates');
+        }
       }
     };
     checkAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/dashboard');
+        // Defer role checking to avoid deadlock
+        setTimeout(async () => {
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id);
+
+          if (roles && roles.length > 0) {
+            const userRoles = roles.map(r => r.role);
+            if (userRoles.includes('superadmin') || userRoles.includes('institution')) {
+              navigate('/admin');
+            } else if (userRoles.includes('instructor')) {
+              navigate('/dashboard');
+            } else {
+              navigate('/dashboard/my-certificates');
+            }
+          } else {
+            navigate('/dashboard/my-certificates');
+          }
+        }, 0);
       }
     });
 
