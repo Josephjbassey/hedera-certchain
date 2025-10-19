@@ -14,6 +14,8 @@ import SetupPage from "./pages/SetupPage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
 import FAQPage from "./pages/FAQPage";
+import AuthPage from "./pages/AuthPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,7 +30,9 @@ const App = () => {
           <Layout>
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/issue" element={<IssuePage />} />
